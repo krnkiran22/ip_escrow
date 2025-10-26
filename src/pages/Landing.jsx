@@ -260,7 +260,7 @@ const Landing = () => {
           </p>
           
           <Link to="/create-project">
-            <Button className="bg-white text-slate-900 px-10 py-5 rounded-xl font-bold text-lg hover:bg-gray-100 shadow-xl mx-auto mt-10">
+            <Button className=" text-slate-900 px-10 py-5 rounded-xl font-bold text-lg hover:bg-gray-100 shadow-xl mx-auto mt-10">
               Get Started Now
               <ArrowRight className="inline ml-2" />
             </Button>
