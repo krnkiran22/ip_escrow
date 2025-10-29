@@ -14,8 +14,6 @@ const Marketplace = () => {
     posted: 'All time'
   });
   
-
-  
   const categories = [
     { icon: PenTool, name: 'Writing' },
     { icon: Palette, name: 'Design' },
@@ -24,6 +22,8 @@ const Marketplace = () => {
     { icon: Code, name: 'Development' },
     { icon: MoreHorizontal, name: 'Other' }
   ];
+  
+
   
   const projects = [
     {
