@@ -14,7 +14,7 @@ const Marketplace = () => {
     posted: 'All time'
   });
   
-  
+
   const categories = [
     { icon: PenTool, name: 'Writing' },
     { icon: Palette, name: 'Design' },
