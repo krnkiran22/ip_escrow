@@ -2,10 +2,10 @@ import { StoryClient, StoryConfig } from '@story-protocol/core-sdk';
 import { createPublicClient, createWalletClient, custom, http } from 'viem';
 import { odyssey } from '@story-protocol/core-sdk';
 
-// Story Testnet Configuration
+// Story Odyssey Testnet Configuration
 const config = {
-  chainId: 1513,
-  transport: http(import.meta.env.VITE_STORY_NETWORK_RPC || 'https://testnet.storyrpc.io'),
+  chainId: 1516,
+  transport: http(import.meta.env.VITE_STORY_NETWORK_RPC || 'https://rpc.odyssey.storyrpc.io'),
   chain: odyssey,
 };
 
@@ -78,7 +78,7 @@ export const getWalletAddress = async () => {
 };
 
 /**
- * Switch to Story testnet network
+ * Switch to Story Odyssey testnet network
  * @returns {boolean} - Success status
  */
 export const switchToStoryNetwork = async () => {
@@ -89,10 +89,10 @@ export const switchToStoryNetwork = async () => {
   try {
     await window.ethereum.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0x5E9' }], // 1513 in hex
+      params: [{ chainId: '0x5EC' }], // 1516 in hex
     });
     
-    console.log('✅ Switched to Story testnet');
+    console.log('✅ Switched to Story Odyssey testnet');
     return true;
   } catch (switchError) {
     // This error code indicates that the chain has not been added to MetaMask
@@ -102,23 +102,23 @@ export const switchToStoryNetwork = async () => {
           method: 'wallet_addEthereumChain',
           params: [
             {
-              chainId: '0x5E9',
-              chainName: 'Story Testnet',
+              chainId: '0x5EC',
+              chainName: 'Story Odyssey Testnet',
               nativeCurrency: {
                 name: 'IP',
                 symbol: 'IP',
                 decimals: 18,
               },
-              rpcUrls: ['https://testnet.storyrpc.io'],
-              blockExplorerUrls: ['https://testnet.storyscan.xyz'],
+              rpcUrls: ['https://rpc.odyssey.storyrpc.io'],
+              blockExplorerUrls: ['https://odyssey.storyscan.xyz'],
             },
           ],
         });
         
-        console.log('✅ Story testnet added and switched');
+        console.log('✅ Story Odyssey testnet added and switched');
         return true;
       } catch (addError) {
-        console.error('❌ Failed to add Story testnet:', addError);
+        console.error('❌ Failed to add Story Odyssey testnet:', addError);
         throw addError;
       }
     }
@@ -129,8 +129,8 @@ export const switchToStoryNetwork = async () => {
 };
 
 /**
- * Check if wallet is connected to Story testnet
- * @returns {boolean} - True if on Story testnet
+ * Check if wallet is connected to Story Odyssey testnet
+ * @returns {boolean} - True if on Story Odyssey testnet
  */
 export const isOnStoryNetwork = async () => {
   if (!window.ethereum) {
@@ -139,7 +139,7 @@ export const isOnStoryNetwork = async () => {
   
   try {
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    return chainId === '0x5E9'; // 1513 in hex
+    return chainId === '0x5EC'; // 1516 in hex
   } catch (error) {
     console.error('❌ Failed to check network:', error);
     return false;
@@ -152,9 +152,9 @@ export const isOnStoryNetwork = async () => {
  */
 export const getStoryConfig = () => {
   return {
-    chainId: parseInt(import.meta.env.VITE_STORY_CHAIN_ID || '1513'),
-    rpcUrl: import.meta.env.VITE_STORY_NETWORK_RPC || 'https://testnet.storyrpc.io',
-    explorerUrl: import.meta.env.VITE_STORY_EXPLORER || 'https://testnet.storyscan.xyz',
+    chainId: parseInt(import.meta.env.VITE_STORY_CHAIN_ID || '1516'),
+    rpcUrl: import.meta.env.VITE_STORY_NETWORK_RPC || 'https://rpc.odyssey.storyrpc.io',
+    explorerUrl: import.meta.env.VITE_STORY_EXPLORER || 'https://odyssey.storyscan.xyz',
     ipEscrowAddress: import.meta.env.VITE_IPESCROW_CONTRACT_ADDRESS,
     revenueVaultAddress: import.meta.env.VITE_REVENUE_VAULT_CONTRACT_ADDRESS,
   };
