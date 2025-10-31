@@ -1,12 +1,36 @@
 import { StoryClient, StoryConfig } from '@story-protocol/core-sdk';
 import { createPublicClient, createWalletClient, custom, http } from 'viem';
-import { odyssey } from '@story-protocol/core-sdk';
+import { defineChain } from 'viem';
 
-// Story Odyssey Testnet Configuration
+// Define Story Aeneid Testnet chain
+const storyAeneid = defineChain({
+  id: 1315,
+  name: 'Story Aeneid Testnet',
+  network: 'story-aeneid-testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'IP',
+    symbol: 'IP',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://aeneid.storyrpc.io'],
+    },
+    public: {
+      http: ['https://aeneid.storyrpc.io'],
+    },
+  },
+  blockExplorers: {
+    default: { name: 'StoryScan', url: 'https://aeneid.storyscan.xyz' },
+  },
+  testnet: true,
+});
+
+// Story Aeneid Testnet Configuration
 const config = {
-  chainId: 1516,
-  transport: http(import.meta.env.VITE_STORY_NETWORK_RPC || 'https://rpc.odyssey.storyrpc.io'),
-  chain: odyssey,
+  chainId: 1315,
+  transport: http(import.meta.env.VITE_STORY_NETWORK_RPC || 'https://aeneid.storyrpc.io'),
+  chain: storyAeneid,
 };
 
 /**
@@ -47,7 +71,7 @@ export const getWalletClient = async () => {
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     
     const walletClient = createWalletClient({
-      chain: odyssey,
+      chain: storyAeneid,
       transport: custom(window.ethereum),
     });
     
@@ -78,7 +102,7 @@ export const getWalletAddress = async () => {
 };
 
 /**
- * Switch to Story Odyssey testnet network
+ * Switch to Story Aeneid testnet network
  * @returns {boolean} - Success status
  */
 export const switchToStoryNetwork = async () => {
@@ -89,10 +113,10 @@ export const switchToStoryNetwork = async () => {
   try {
     await window.ethereum.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0x5EC' }], // 1516 in hex
+      params: [{ chainId: '0x523' }], // 1315 in hex
     });
     
-    console.log('✅ Switched to Story Odyssey testnet');
+    console.log('✅ Switched to Story Aeneid testnet');
     return true;
   } catch (switchError) {
     // This error code indicates that the chain has not been added to MetaMask
@@ -102,23 +126,23 @@ export const switchToStoryNetwork = async () => {
           method: 'wallet_addEthereumChain',
           params: [
             {
-              chainId: '0x5EC',
-              chainName: 'Story Odyssey Testnet',
+              chainId: '0x523',
+              chainName: 'Story Aeneid Testnet',
               nativeCurrency: {
                 name: 'IP',
                 symbol: 'IP',
                 decimals: 18,
               },
-              rpcUrls: ['https://rpc.odyssey.storyrpc.io'],
-              blockExplorerUrls: ['https://odyssey.storyscan.xyz'],
+              rpcUrls: ['https://aeneid.storyrpc.io'],
+              blockExplorerUrls: ['https://aeneid.storyscan.xyz'],
             },
           ],
         });
         
-        console.log('✅ Story Odyssey testnet added and switched');
+        console.log('✅ Story Aeneid testnet added and switched');
         return true;
       } catch (addError) {
-        console.error('❌ Failed to add Story Odyssey testnet:', addError);
+        console.error('❌ Failed to add Story Aeneid testnet:', addError);
         throw addError;
       }
     }
@@ -129,8 +153,8 @@ export const switchToStoryNetwork = async () => {
 };
 
 /**
- * Check if wallet is connected to Story Odyssey testnet
- * @returns {boolean} - True if on Story Odyssey testnet
+ * Check if wallet is connected to Story Aeneid testnet
+ * @returns {boolean} - True if on Story Aeneid testnet
  */
 export const isOnStoryNetwork = async () => {
   if (!window.ethereum) {
@@ -139,7 +163,7 @@ export const isOnStoryNetwork = async () => {
   
   try {
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    return chainId === '0x5EC'; // 1516 in hex
+    return chainId === '0x523'; // 1315 in hex
   } catch (error) {
     console.error('❌ Failed to check network:', error);
     return false;
@@ -152,9 +176,9 @@ export const isOnStoryNetwork = async () => {
  */
 export const getStoryConfig = () => {
   return {
-    chainId: parseInt(import.meta.env.VITE_STORY_CHAIN_ID || '1516'),
-    rpcUrl: import.meta.env.VITE_STORY_NETWORK_RPC || 'https://rpc.odyssey.storyrpc.io',
-    explorerUrl: import.meta.env.VITE_STORY_EXPLORER || 'https://odyssey.storyscan.xyz',
+    chainId: parseInt(import.meta.env.VITE_STORY_CHAIN_ID || '1315'),
+    rpcUrl: import.meta.env.VITE_STORY_NETWORK_RPC || 'https://aeneid.storyrpc.io',
+    explorerUrl: import.meta.env.VITE_STORY_EXPLORER || 'https://aeneid.storyscan.xyz',
     ipEscrowAddress: import.meta.env.VITE_IPESCROW_CONTRACT_ADDRESS,
     revenueVaultAddress: import.meta.env.VITE_REVENUE_VAULT_CONTRACT_ADDRESS,
   };
