@@ -17,6 +17,7 @@
 npm run dev
 ```
 
+
 ### Step 2: Open Browser Console BEFORE Creating Project
 
 1. Open browser: http://localhost:5173/create-project
