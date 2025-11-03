@@ -94,6 +94,7 @@ const escrowAbi = parseAbi([
 export async function createProjectOnChain(title, description, milestoneAmounts, milestoneNames, ipfsHash) {
   try {
     console.log('🚀 Creating project on blockchain...');
+    console.log('📦 IPFS Metadata Hash:', ipfsHash); // Log for reference
     
     const { walletClient, address } = await getWalletClient();
     

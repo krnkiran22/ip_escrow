@@ -7,6 +7,8 @@ import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import toast from 'react-hot-toast';
+import { uploadFile, uploadJSON, generateFileHash } from '../services/ipfsService';
+import { createProjectOnChain } from '../services/contractService';
 
 const CreateProject = () => {
   const navigate = useNavigate();
@@ -54,41 +56,72 @@ const CreateProject = () => {
     { number: 4, title: 'Review', description: 'Confirm & submit' }
   ];
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     
-    files.forEach(file => {
+    for (const file of files) {
+      // Validate file size
       if (file.size > 10 * 1024 * 1024) {
         toast.error(`${file.name} is too large. Max size is 10MB.`);
-        return;
+        continue;
       }
 
-      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain'];
       if (!validTypes.includes(file.type)) {
         toast.error(`${file.name} is not a supported file type.`);
-        return;
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newFile = {
-          id: Date.now() + Math.random(),
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          preview: reader.result,
-          file: file
-        };
+      try {
+        toast.loading(`Uploading ${file.name} to IPFS...`, { id: `upload-${file.name}` });
         
-        setUploadedFiles(prev => [...prev, newFile]);
-        setFormData(prev => ({
-          ...prev,
-          files: [...prev.files, newFile]
-        }));
-        toast.success(`${file.name} uploaded successfully!`);
-      };
-      reader.readAsDataURL(file);
-    });
+        // Generate file hash for verification
+        const hashResult = await generateFileHash(file);
+        
+        // Upload file to IPFS
+        const uploadResult = await uploadFile(file);
+        
+        if (!uploadResult.success) {
+          toast.error(`Failed to upload ${file.name}`, { id: `upload-${file.name}` });
+          continue;
+        }
+
+        // Create file preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const newFile = {
+            id: Date.now() + Math.random(),
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            preview: reader.result,
+            ipfsHash: uploadResult.ipfsHash,
+            ipfsUrl: uploadResult.url,
+            fileHash: hashResult.hash,
+            uploadedAt: new Date().toISOString()
+          };
+          
+          setUploadedFiles(prev => [...prev, newFile]);
+          setFormData(prev => ({
+            ...prev,
+            files: [...prev.files, newFile]
+          }));
+        };
+        reader.readAsDataURL(file);
+
+        toast.success(`${file.name} uploaded to IPFS!`, { id: `upload-${file.name}` });
+        console.log('✅ File uploaded:', {
+          name: file.name,
+          ipfsHash: uploadResult.ipfsHash,
+          url: uploadResult.url,
+          hash: hashResult.hash
+        });
+      } catch (error) {
+        console.error('File upload error:', error);
+        toast.error(`Failed to upload ${file.name}`, { id: `upload-${file.name}` });
+      }
+    }
   };
 
   const removeFile = (fileId) => {
@@ -237,19 +270,109 @@ const CreateProject = () => {
     try {
       toast.loading('Creating project...', { id: 'create' });
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Project Data:', {
-        ...formData,
+      // Step 1: Create project metadata
+      const projectMetadata = {
+        title: formData.title,
+        category: formData.category,
+        description: formData.description,
+        skills: formData.skills,
+        files: formData.files.map(f => ({
+          name: f.name,
+          ipfsHash: f.ipfsHash,
+          ipfsUrl: f.ipfsUrl,
+          fileHash: f.fileHash,
+          size: f.size,
+          type: f.type
+        })),
+        milestones: formData.milestones.map(m => ({
+          name: m.name,
+          description: m.description || '',
+          amount: parseFloat(m.amount),
+          timeline: m.timeline,
+          deliverables: m.deliverables || ''
+        })),
+        totalBudget: formData.totalBudget,
+        revenueSharing: {
+          creator: formData.revenueMyShare,
+          collaborator: formData.revenueCollabShare
+        },
+        licenseType: formData.licenseType,
         creator: address,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        version: '1.0'
+      };
+
+      console.log('📝 Project Metadata:', projectMetadata);
+      
+      // Step 2: Upload metadata to IPFS
+      toast.loading('Uploading project metadata to IPFS...', { id: 'create' });
+      const metadataResult = await uploadJSON(projectMetadata);
+      
+      if (!metadataResult.success) {
+        throw new Error('Failed to upload metadata to IPFS');
+      }
+
+      console.log('✅ Metadata uploaded to IPFS:', {
+        ipfsHash: metadataResult.ipfsHash,
+        url: metadataResult.url
       });
 
-      toast.success('Project created successfully!', { id: 'create' });
-      navigate('/dashboard');
+      // Step 3: Create project on blockchain
+      toast.loading('Creating project on blockchain...', { id: 'create' });
+      
+      const milestoneAmounts = formData.milestones.map(m => parseFloat(m.amount));
+      const milestoneNames = formData.milestones.map(m => m.name);
+      
+      const contractResult = await createProjectOnChain(
+        formData.title,
+        formData.description,
+        milestoneAmounts,
+        milestoneNames,
+        metadataResult.ipfsHash // Pass metadata IPFS hash
+      );
+
+      if (!contractResult.success) {
+        throw new Error(contractResult.error || 'Failed to create project on blockchain');
+      }
+
+      console.log('✅ Project created on blockchain:', {
+        projectId: contractResult.projectId,
+        txHash: contractResult.txHash
+      });
+
+      // Step 4: Success!
+      toast.success(
+        <div>
+          <p className="font-semibold">Project created successfully!</p>
+          <p className="text-sm">Project ID: {contractResult.projectId}</p>
+          <p className="text-xs text-slate-600">Metadata: {metadataResult.ipfsHash}</p>
+        </div>,
+        { id: 'create', duration: 5000 }
+      );
+
+      // Store complete project info
+      const completeProjectInfo = {
+        ...projectMetadata,
+        projectId: contractResult.projectId,
+        txHash: contractResult.txHash,
+        metadataIpfsHash: metadataResult.ipfsHash,
+        metadataIpfsUrl: metadataResult.url,
+        status: 'active'
+      };
+
+      console.log('🎉 Complete Project Info:', completeProjectInfo);
+
+      // Navigate to dashboard after short delay
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+
     } catch (error) {
-      console.error('Error creating project:', error);
-      toast.error('Failed to create project', { id: 'create' });
+      console.error('❌ Error creating project:', error);
+      toast.error(
+        error.message || 'Failed to create project. Please try again.',
+        { id: 'create' }
+      );
     }
   };
 
@@ -742,12 +865,31 @@ const CreateProject = () => {
 
             {uploadedFiles.length > 0 && (
               <div className="p-6 border-2 border-slate-200 rounded-xl">
-                <h3 className="text-lg font-semibold text-slate-800 mb-3">Uploaded Files</h3>
-                <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3">Uploaded Files (IPFS)</h3>
+                <div className="space-y-3">
                   {uploadedFiles.map(file => (
-                    <div key={file.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
-                      <FileText className="w-5 h-5 text-slate-400" />
-                      <span className="text-sm text-slate-700">{file.name}</span>
+                    <div key={file.id} className="p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-center gap-3 mb-2">
+                        <FileText className="w-5 h-5 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-700">{file.name}</span>
+                        <span className="text-xs text-slate-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      {file.ipfsHash && (
+                        <div className="ml-8 space-y-1">
+                          <p className="text-xs text-slate-600">
+                            <span className="font-medium">IPFS Hash:</span>{' '}
+                            <code className="bg-slate-200 px-1 rounded text-xs">{file.ipfsHash}</code>
+                          </p>
+                          <a
+                            href={file.ipfsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-indigo-600 hover:underline"
+                          >
+                            View on IPFS →
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
