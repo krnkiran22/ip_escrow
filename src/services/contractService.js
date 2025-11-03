@@ -96,6 +96,41 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
     console.log('🚀 Creating project on blockchain...');
     console.log('📦 IPFS Metadata Hash:', ipfsHash); // Log for reference
     
+    // VALIDATE INPUTS
+    if (!title || title.trim() === '') {
+      throw new Error('Title is required');
+    }
+    if (!description || description.trim() === '') {
+      throw new Error('Description is required');
+    }
+    if (!milestoneAmounts || milestoneAmounts.length === 0) {
+      throw new Error('At least one milestone is required');
+    }
+    if (!milestoneNames || milestoneNames.length === 0) {
+      throw new Error('Milestone names are required');
+    }
+    if (milestoneAmounts.length !== milestoneNames.length) {
+      throw new Error(`Array length mismatch: ${milestoneAmounts.length} amounts but ${milestoneNames.length} names`);
+    }
+    
+    // Check for empty milestone names
+    const emptyNames = milestoneNames.filter(name => !name || name.trim() === '');
+    if (emptyNames.length > 0) {
+      throw new Error('All milestone names must be filled');
+    }
+    
+    // Check for zero or negative amounts
+    const invalidAmounts = milestoneAmounts.filter(amount => amount <= 0);
+    if (invalidAmounts.length > 0) {
+      throw new Error('All milestone amounts must be greater than 0');
+    }
+    
+    console.log('✅ Input validation passed');
+    console.log('   Title:', title);
+    console.log('   Milestones:', milestoneAmounts.length);
+    console.log('   Amounts:', milestoneAmounts);
+    console.log('   Names:', milestoneNames);
+    
     const { walletClient, address } = await getWalletClient();
     
     // Convert amounts to BigInt (wei)
@@ -108,16 +143,47 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
     const platformFee = (totalBudget * 2n) / 100n;
     const totalValue = totalBudget + platformFee;
     
-    console.log('Project details:', {
-      title,
-      description,
-      milestones: milestoneNames.length,
-      totalBudget: totalBudget.toString(),
-      platformFee: platformFee.toString(),
-      totalValue: totalValue.toString(),
-    });
+    console.log('💰 Project Cost Calculation:');
+    console.log('   Milestone amounts:', milestoneAmounts);
+    console.log('   Total Budget:', (Number(totalBudget) / 1e18).toFixed(4), 'IP');
+    console.log('   Platform Fee (2%):', (Number(platformFee) / 1e18).toFixed(4), 'IP');
+    console.log('   Total Required:', (Number(totalValue) / 1e18).toFixed(4), 'IP');
+    
+    // CHECK BALANCE BEFORE SENDING
+    console.log('🔍 Checking wallet balance...');
+    const balance = await publicClient.getBalance({ address });
+    const balanceInIP = Number(balance) / 1e18;
+    const requiredInIP = Number(totalValue) / 1e18;
+    
+    console.log('   Your Balance:', balanceInIP.toFixed(4), 'IP');
+    console.log('   Required:', requiredInIP.toFixed(4), 'IP');
+    
+    if (balance < totalValue) {
+      const shortfall = (Number(totalValue - balance) / 1e18).toFixed(4);
+      throw new Error(
+        `Insufficient balance! You need ${shortfall} more IP tokens.\n` +
+        `Required: ${requiredInIP.toFixed(4)} IP\n` +
+        `Current Balance: ${balanceInIP.toFixed(4)} IP\n` +
+        `Get tokens from: https://faucet.story.foundation`
+      );
+    }
+    
+    console.log('✅ Balance check passed');
+    
+    console.log('\n📝 Final Transaction Parameters:');
+    console.log('   Contract:', contractAddress);
+    console.log('   Function:', 'createProject');
+    console.log('   Arg 1 - Title:', title);
+    console.log('   Arg 2 - Description:', description.substring(0, 50) + '...');
+    console.log('   Arg 3 - Amounts (array):', amounts.map(a => a.toString()));
+    console.log('   Arg 4 - Milestone Names (array):', milestoneNames);
+    console.log('   Value (msg.value):', totalValue.toString(), 'wei =', (Number(totalValue) / 1e18).toFixed(4), 'IP');
+    console.log('   From address:', address);
+    console.log('');
     
     toast.loading('Waiting for transaction approval...', { id: 'create-project' });
+    
+    console.log('🔐 Sending transaction to wallet for approval...');
     
     // Call smart contract
     const hash = await walletClient.writeContract({
@@ -129,7 +195,10 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
       account: address,
     });
     
-    console.log('✅ Transaction sent:', hash);
+    console.log('✅ Transaction sent!');
+    console.log('   Hash:', hash);
+    console.log('   Explorer:', `https://aeneid.storyscan.xyz/tx/${hash}`);
+    
     toast.loading('Transaction submitted. Waiting for confirmation...', { id: 'create-project' });
     
     // Wait for transaction confirmation
@@ -138,16 +207,58 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
       confirmations: 1,
     });
     
-    console.log('✅ Transaction confirmed:', receipt);
+    console.log('✅ Transaction confirmed!');
+    console.log('   Status:', receipt.status);
+    console.log('   Block:', receipt.blockNumber);
+    console.log('   Gas Used:', receipt.gasUsed.toString());
+    
+    // Check if transaction was successful (can be 'success', 1, or true)
+    const isSuccess = receipt.status === 'success' || receipt.status === 1 || receipt.status === true;
+    
+    if (!isSuccess) {
+      console.error('❌ Transaction reverted!');
+      console.error('   Status:', receipt.status);
+      console.error('   Block:', receipt.blockNumber?.toString());
+      console.error('   Gas Used:', receipt.gasUsed?.toString());
+      console.error('   Transaction Hash:', receipt.transactionHash);
+      console.error('   View on explorer:', `https://aeneid.storyscan.xyz/tx/${receipt.transactionHash}`);
+      
+      throw new Error(
+        'Transaction was included in a block but execution failed (reverted).\n' +
+        'This usually means:\n' +
+        '1. Contract requirements not met (check require statements)\n' +
+        '2. Insufficient value sent with transaction\n' +
+        '3. Invalid parameters (array lengths mismatch)\n' +
+        `4. View transaction details: https://aeneid.storyscan.xyz/tx/${receipt.transactionHash || hash}`
+      );
+    }
+    
+    // Wait a bit for state to update
+    console.log('⏳ Waiting for state to update...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Read project count to get new project ID
+    console.log('📊 Reading project count...');
     const projectCount = await publicClient.readContract({
       address: contractAddress,
       abi: escrowAbi,
       functionName: 'projectCount',
     });
     
-    const projectId = projectCount.toString();
+    const projectId = Number(projectCount);
+    console.log('Project count after creation:', projectId);
+    
+    if (projectId === 0) {
+      console.error('⚠️ WARNING: Project count is still 0 after transaction!');
+      console.error('Transaction was confirmed but state did not update.');
+      console.error('This could mean:');
+      console.error('1. Transaction reverted (check receipt.status)');
+      console.error('2. Not enough funds sent with transaction');
+      console.error('3. Contract has a bug');
+      console.error('Receipt details:', JSON.stringify(receipt, null, 2));
+      
+      throw new Error('Project count did not increase. Transaction may have reverted.');
+    }
     
     toast.success(`Project created successfully! ID: ${projectId}`, { id: 'create-project' });
     

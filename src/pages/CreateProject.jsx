@@ -9,6 +9,7 @@ import Input from '../components/ui/Input';
 import toast from 'react-hot-toast';
 import { uploadFile, uploadJSON, generateFileHash } from '../services/ipfsService';
 import { createProjectOnChain } from '../services/contractService';
+import SubmissionProgress from '../components/SubmissionProgress';
 
 const CreateProject = () => {
   const navigate = useNavigate();
@@ -18,6 +19,12 @@ const CreateProject = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const fileInputRef = useRef(null);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionProgress, setSubmissionProgress] = useState({
+    show: false,
+    currentStep: 0,
+    steps: []
+  });
   
   const [formData, setFormData] = useState({
     title: '',
@@ -268,9 +275,30 @@ const CreateProject = () => {
     }
 
     try {
-      toast.loading('Creating project...', { id: 'create' });
+      setIsSubmitting(true);
       
-      // Step 1: Create project metadata
+      // Initialize progress steps
+      const progressSteps = [
+        { id: 1, title: 'Uploading Files to IPFS', description: 'Storing project files on decentralized storage' },
+        { id: 2, title: 'Creating Metadata', description: 'Preparing project information' },
+        { id: 3, title: 'Uploading Metadata to IPFS', description: 'Storing project metadata' },
+        { id: 4, title: 'Creating on Blockchain', description: 'Waiting for wallet approval' },
+        { id: 5, title: 'Confirming Transaction', description: 'Waiting for blockchain confirmation' }
+      ];
+      
+      setSubmissionProgress({
+        show: true,
+        currentStep: 0,
+        steps: progressSteps
+      });
+      
+      // Step 1: Upload files (already done during file selection)
+      setSubmissionProgress(prev => ({ ...prev, currentStep: 1 }));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for UX
+      
+      // Step 2: Create project metadata
+      setSubmissionProgress(prev => ({ ...prev, currentStep: 2 }));
+      
       const projectMetadata = {
         title: formData.title,
         category: formData.category,
@@ -304,7 +332,8 @@ const CreateProject = () => {
 
       console.log('📝 Project Metadata:', projectMetadata);
       
-      // Step 2: Upload metadata to IPFS
+      // Step 3: Upload metadata to IPFS
+      setSubmissionProgress(prev => ({ ...prev, currentStep: 3 }));
       toast.loading('Uploading project metadata to IPFS...', { id: 'create' });
       const metadataResult = await uploadJSON(projectMetadata);
       
@@ -316,8 +345,17 @@ const CreateProject = () => {
         ipfsHash: metadataResult.ipfsHash,
         url: metadataResult.url
       });
+      
+      // Update progress with metadata hash
+      setSubmissionProgress(prev => ({
+        ...prev,
+        steps: prev.steps.map((step, idx) => 
+          idx === 2 ? { ...step, result: `IPFS: ${metadataResult.ipfsHash.slice(0, 8)}...` } : step
+        )
+      }));
 
-      // Step 3: Create project on blockchain
+      // Step 4: Create project on blockchain
+      setSubmissionProgress(prev => ({ ...prev, currentStep: 4 }));
       toast.loading('Creating project on blockchain...', { id: 'create' });
       
       const milestoneAmounts = formData.milestones.map(m => parseFloat(m.amount));
@@ -335,12 +373,23 @@ const CreateProject = () => {
         throw new Error(contractResult.error || 'Failed to create project on blockchain');
       }
 
+      // Step 5: Transaction confirmed
+      setSubmissionProgress(prev => ({ ...prev, currentStep: 5 }));
+
       console.log('✅ Project created on blockchain:', {
         projectId: contractResult.projectId,
         txHash: contractResult.txHash
       });
+      
+      // Update progress with transaction hash
+      setSubmissionProgress(prev => ({
+        ...prev,
+        steps: prev.steps.map((step, idx) => 
+          idx === 4 ? { ...step, result: `Project ID: ${contractResult.projectId}` } : step
+        )
+      }));
 
-      // Step 4: Success!
+      // Success!
       toast.success(
         <div>
           <p className="font-semibold">Project created successfully!</p>
@@ -369,10 +418,13 @@ const CreateProject = () => {
 
     } catch (error) {
       console.error('❌ Error creating project:', error);
+      setSubmissionProgress({ show: false, currentStep: 0, steps: [] });
       toast.error(
         error.message || 'Failed to create project. Please try again.',
         { id: 'create' }
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -945,7 +997,17 @@ const CreateProject = () => {
           </p>
         </div>
 
-        <div className="mb-12">
+        {/* Submission Progress Overlay */}
+        {submissionProgress.show && (
+          <SubmissionProgress 
+            steps={submissionProgress.steps}
+            currentStep={submissionProgress.currentStep}
+          />
+        )}
+
+        {!submissionProgress.show && (
+          <>
+            <div className="mb-12">
           <div className="flex items-center justify-between relative">
             {steps.map((step, idx) => (
               <div key={step.number} className="flex flex-col items-center relative z-10 flex-1">
@@ -998,14 +1060,16 @@ const CreateProject = () => {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!isConnected || !formData.agreedToTerms}
+              disabled={!isConnected || !formData.agreedToTerms || isSubmitting}
               className="px-8"
             >
               <Rocket className="w-5 h-5 mr-2" />
-              Launch Project
+              {isSubmitting ? 'Creating...' : 'Launch Project'}
             </Button>
           )}
         </div>
+          </>
+        )}
       </div>
 
       <Footer />
