@@ -68,7 +68,7 @@ const getWalletClient = async () => {
 
 // IPEscrow Contract ABI (simplified for testing)
 const escrowAbi = parseAbi([
-  'function createProject(string _title, string _description, uint256[] _amounts, string[] _milestoneNames) payable returns (uint256)',
+  'function createProject(string _title, uint256[] _amounts) payable returns (uint256)',
   'function projectCount() view returns (uint256)',
   'function getProject(uint256 _projectId) view returns (address, address, string, uint256, uint256, uint8)',
   'function approveCollaborator(uint256 _projectId, address _collaborator)',
@@ -174,23 +174,22 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
     console.log('   Contract:', contractAddress);
     console.log('   Function:', 'createProject');
     console.log('   Arg 1 - Title:', title);
-    console.log('   Arg 2 - Description:', description.substring(0, 50) + '...');
-    console.log('   Arg 3 - Amounts (array):', amounts.map(a => a.toString()));
-    console.log('   Arg 4 - Milestone Names (array):', milestoneNames);
+    console.log('   Arg 2 - Amounts (array):', amounts.map(a => a.toString()));
     console.log('   Value (msg.value):', totalValue.toString(), 'wei =', (Number(totalValue) / 1e18).toFixed(4), 'IP');
     console.log('   From address:', address);
+    console.log('   NOTE: Description and milestone names stored in IPFS only');
     console.log('');
     
     toast.loading('Waiting for transaction approval...', { id: 'create-project' });
     
     console.log('🔐 Sending transaction to wallet for approval...');
     
-    // Call smart contract
+    // Call smart contract - only title and amounts (contract doesn't store description/names)
     const hash = await walletClient.writeContract({
       address: contractAddress,
       abi: escrowAbi,
       functionName: 'createProject',
-      args: [title, description, amounts, milestoneNames],
+      args: [title, amounts],  // Only 2 parameters!
       value: totalValue,
       account: address,
     });
