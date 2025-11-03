@@ -3,6 +3,9 @@
  * Tests complete workflow: File upload → Hash → Metadata → Story Protocol
  */
 
+// Load environment variables first
+import './loadEnv.js';
+
 import { 
   uploadFile, 
   uploadJSON, 

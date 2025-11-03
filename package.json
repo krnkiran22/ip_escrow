@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:ipfs": "node src/test/runTests.js",
+    "test:ipfs:single": "node src/test/ipfsTest.js",
+    "test:ipfs:json": "node src/test/ipfsJSONTest.js",
+    "test:ipfs:integration": "node src/test/ipfsIntegrationTest.js"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.9",

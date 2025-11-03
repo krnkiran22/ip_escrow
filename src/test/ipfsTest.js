@@ -3,6 +3,9 @@
  * Tests basic file upload to Pinata
  */
 
+// Load environment variables first
+import './loadEnv.js';
+
 import { uploadFile, getFileURL, checkIPFSConfiguration } from '../services/ipfsService.js';
 
 async function testSingleFileUpload() {

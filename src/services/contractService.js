@@ -2,6 +2,17 @@ import { createPublicClient, createWalletClient, custom, http, parseAbi, parseEt
 import { defineChain } from 'viem';
 import toast from 'react-hot-toast';
 
+// Support both Node.js (process.env) and Vite (import.meta.env)
+const getEnv = (key) => {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key];
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env[key];
+  }
+  return undefined;
+};
+
 // Define Story Aeneid Testnet
 const storyAeneid = defineChain({
   id: 1315,
@@ -26,8 +37,8 @@ const storyAeneid = defineChain({
   testnet: true,
 });
 
-const contractAddress = import.meta.env.VITE_IPESCROW_CONTRACT_ADDRESS;
-const revenueVaultAddress = import.meta.env.VITE_REVENUE_VAULT_CONTRACT_ADDRESS;
+const contractAddress = getEnv('VITE_IPESCROW_CONTRACT_ADDRESS');
+const revenueVaultAddress = getEnv('VITE_REVENUE_VAULT_CONTRACT_ADDRESS');
 
 // Public client for reading
 const publicClient = createPublicClient({
@@ -55,12 +66,11 @@ const getWalletClient = async () => {
   return { walletClient, address };
 };
 
-// IPEscrow Contract ABI (add all your functions)
+// IPEscrow Contract ABI (simplified for testing)
 const escrowAbi = parseAbi([
   'function createProject(string _title, string _description, uint256[] _amounts, string[] _milestoneNames) payable returns (uint256)',
   'function projectCount() view returns (uint256)',
   'function getProject(uint256 _projectId) view returns (address, address, string, uint256, uint256, uint8)',
-  'function getMilestones(uint256 _projectId) view returns (tuple(string name, uint256 amount, bool completed, string ipfsHash, address submitter, bool approved)[])',
   'function approveCollaborator(uint256 _projectId, address _collaborator)',
   'function submitMilestone(uint256 _projectId, uint256 _index, string _ipfsHash)',
   'function approveMilestone(uint256 _projectId, uint256 _index)',
@@ -223,8 +233,10 @@ export async function getProjectDetails(projectId) {
  * GET PROJECT MILESTONES
  * @param {number|string} projectId - Project ID
  * @returns {Promise<Array>} - Array of milestones
+ * 
+ * TODO: Fix ABI for complex tuple return type
  */
-export async function getProjectMilestones(projectId) {
+/* export async function getProjectMilestones(projectId) {
   try {
     const milestones = await publicClient.readContract({
       address: contractAddress,
@@ -252,7 +264,7 @@ export async function getProjectMilestones(projectId) {
       error: error.message,
     };
   }
-}
+} */
 
 /**
  * APPROVE COLLABORATOR
@@ -438,7 +450,7 @@ export default {
   createProjectOnChain,
   getProjectCount,
   getProjectDetails,
-  getProjectMilestones,
+  // getProjectMilestones, // TODO: Fix ABI tuple syntax
   approveCollaborator,
   submitMilestone,
   approveMilestone,

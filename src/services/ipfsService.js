@@ -1,10 +1,23 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 
-const PINATA_API_KEY = import.meta.env.VITE_PINATA_API_KEY;
-const PINATA_SECRET_KEY = import.meta.env.VITE_PINATA_SECRET_KEY;
-const PINATA_JWT = import.meta.env.VITE_PINATA_JWT;
-const IPFS_GATEWAY = import.meta.env.VITE_IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
+// Support both Node.js (process.env) and Vite (import.meta.env)
+const getEnv = (key) => {
+  // In Node.js environment (testing)
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key];
+  }
+  // In Vite/browser environment
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env[key];
+  }
+  return undefined;
+};
+
+const PINATA_API_KEY = getEnv('VITE_PINATA_API_KEY');
+const PINATA_SECRET_KEY = getEnv('VITE_PINATA_SECRET_KEY');
+const PINATA_JWT = getEnv('VITE_PINATA_JWT');
+const IPFS_GATEWAY = getEnv('VITE_IPFS_GATEWAY') || 'https://gateway.pinata.cloud/ipfs/';
 
 /**
  * Upload file to IPFS via Pinata
@@ -41,10 +54,7 @@ export async function uploadFile(file) {
       {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_SECRET_KEY,
-          // Alternative: Use JWT if you prefer
-          // 'Authorization': `Bearer ${PINATA_JWT}`,
+          'Authorization': `Bearer ${PINATA_JWT}`,
         },
         maxBodyLength: Infinity,
       }
@@ -87,10 +97,7 @@ export async function uploadJSON(metadata) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_SECRET_KEY,
-          // Alternative: Use JWT
-          // 'Authorization': `Bearer ${PINATA_JWT}`,
+          'Authorization': `Bearer ${PINATA_JWT}`,
         },
       }
     );
@@ -208,8 +215,7 @@ export async function pinFile(ipfsHash, name = '') {
       },
       {
         headers: {
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_SECRET_KEY,
+          'Authorization': `Bearer ${PINATA_JWT}`,
         },
       }
     );
@@ -315,8 +321,7 @@ export async function uploadFileWithProgress(file, onProgress) {
       {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_SECRET_KEY,
+          'Authorization': `Bearer ${PINATA_JWT}`,
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
@@ -410,19 +415,15 @@ export async function fetchJSONFromIPFS(ipfsHash) {
  * @returns {object} - { configured, gateway, error }
  */
 export function checkIPFSConfiguration() {
-  const hasApiKey = PINATA_API_KEY && PINATA_API_KEY !== 'your_pinata_api_key_here';
-  const hasSecretKey = PINATA_SECRET_KEY && PINATA_SECRET_KEY !== 'your_pinata_secret_key_here';
-  const hasJWT = PINATA_JWT && PINATA_JWT !== 'your_pinata_jwt_token_here';
+  const hasJWT = PINATA_JWT && PINATA_JWT !== 'your_pinata_jwt_token_here' && PINATA_JWT.length > 20;
   
-  const configured = hasApiKey && hasSecretKey || hasJWT;
+  const configured = hasJWT;
   
   return {
     configured,
-    hasApiKey,
-    hasSecretKey,
     hasJWT,
     gateway: IPFS_GATEWAY,
-    error: !configured ? 'IPFS credentials not configured. Please add Pinata API keys to .env file.' : null,
+    error: !configured ? 'IPFS credentials not configured. Please add Pinata JWT token to .env file.' : null,
   };
 }
 

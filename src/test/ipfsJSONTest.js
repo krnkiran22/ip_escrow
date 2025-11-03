@@ -3,6 +3,9 @@
  * Tests JSON metadata upload to Pinata
  */
 
+// Load environment variables first
+import './loadEnv.js';
+
 import { uploadJSON, fetchJSONFromIPFS, checkIPFSConfiguration } from '../services/ipfsService.js';
 
 async function testJSONUpload() {
