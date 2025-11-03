@@ -1,437 +1,871 @@
-import { useState } from 'react';
-import { Check, ArrowRight, Save, CloudUpload, X, FileText, PenTool, Palette, Music, Video, Code, MoreHorizontal, GripVertical, Trash2, Plus, Edit3, Rocket, AlertCircle, Info } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Check, ArrowRight, CloudUpload, X, FileText, PenTool, Palette, Music, Video, Code, MoreHorizontal, Trash2, Plus, Rocket, AlertCircle, Info } from 'lucide-react';
+import { useAccount } from 'wagmi';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import toast from 'react-hot-toast';
 
 const CreateProject = () => {
+  const navigate = useNavigate();
+  const { address, isConnected } = useAccount();
   const [currentStep, setCurrentStep] = useState(1);
+  const [skillInput, setSkillInput] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const fileInputRef = useRef(null);
+  const [errors, setErrors] = useState({});
+  
   const [formData, setFormData] = useState({
     title: '',
     category: '',
     description: '',
     skills: [],
-    milestones: [{ id: 1, name: '', description: '', amount: '', timeline: '' }],
-    totalBudget: 2000,
+    files: [],
+    milestones: [{ id: 1, name: '', description: '', amount: '', timeline: '', deliverables: '' }],
+    totalBudget: 0,
     revenueMyShare: 50,
     revenueCollabShare: 50,
     licenseType: 'joint',
     agreedToTerms: false
   });
-  
-  const steps = [
-    { id: 1, name: 'Basic Info' },
-    { id: 2, name: 'Milestones' },
-    { id: 3, name: 'Budget & Terms' },
-    { id: 4, name: 'Review' }
-  ];
-  
+
   const categories = [
-    { value: 'writing', label: 'Writing', icon: PenTool },
-    { value: 'design', label: 'Design', icon: Palette },
-    { value: 'music', label: 'Music', icon: Music },
-    { value: 'video', label: 'Video', icon: Video },
-    { value: 'development', label: 'Development', icon: Code },
+    { value: 'writing', label: 'Writing & Content', icon: FileText },
+    { value: 'design', label: 'Design & Art', icon: PenTool },
+    { value: 'illustration', label: 'Illustration', icon: Palette },
+    { value: 'music', label: 'Music & Audio', icon: Music },
+    { value: 'video', label: 'Video & Animation', icon: Video },
+    { value: 'software', label: 'Software & Code', icon: Code },
     { value: 'other', label: 'Other', icon: MoreHorizontal }
   ];
-  
+
+  const skillSuggestions = [
+    'JavaScript', 'Python', 'React', 'Design', 'Writing', 'Video Editing',
+    'Illustration', 'Music Production', '3D Modeling', 'Photography',
+    'Content Writing', 'UI/UX Design', 'Animation', 'Marketing', 'SEO'
+  ];
+
+  const steps = [
+    { number: 1, title: 'Basic Info', description: 'Project details' },
+    { number: 2, title: 'Milestones', description: 'Define deliverables' },
+    { number: 3, title: 'Revenue', description: 'Set IP terms' },
+    { number: 4, title: 'Review', description: 'Confirm & submit' }
+  ];
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files);
+    
+    files.forEach(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name} is too large. Max size is 10MB.`);
+        return;
+      }
+
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        toast.error(`${file.name} is not a supported file type.`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newFile = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          preview: reader.result,
+          file: file
+        };
+        
+        setUploadedFiles(prev => [...prev, newFile]);
+        setFormData(prev => ({
+          ...prev,
+          files: [...prev.files, newFile]
+        }));
+        toast.success(`${file.name} uploaded successfully!`);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeFile = (fileId) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+    setFormData(prev => ({
+      ...prev,
+      files: prev.files.filter(f => f.id !== fileId)
+    }));
+    toast.success('File removed');
+  };
+
+  const handleSkillKeyDown = (e) => {
+    if (e.key === 'Enter' && skillInput.trim()) {
+      e.preventDefault();
+      if (!formData.skills.includes(skillInput.trim())) {
+        setFormData(prev => ({
+          ...prev,
+          skills: [...prev.skills, skillInput.trim()]
+        }));
+        setSkillInput('');
+        toast.success('Skill added!');
+      } else {
+        toast.error('Skill already added');
+      }
+    }
+  };
+
+  const addSkill = (skill) => {
+    if (!formData.skills.includes(skill)) {
+      setFormData(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill]
+      }));
+      toast.success('Skill added!');
+    }
+  };
+
+  const removeSkill = (skillToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(s => s !== skillToRemove)
+    }));
+  };
+
   const addMilestone = () => {
-    setFormData({
-      ...formData,
-      milestones: [...formData.milestones, { id: Date.now(), name: '', description: '', amount: '', timeline: '' }]
-    });
+    const newMilestone = {
+      id: Date.now(),
+      name: '',
+      description: '',
+      amount: '',
+      timeline: '',
+      deliverables: ''
+    };
+    setFormData(prev => ({
+      ...prev,
+      milestones: [...prev.milestones, newMilestone]
+    }));
   };
-  
+
   const removeMilestone = (id) => {
-    setFormData({
-      ...formData,
-      milestones: formData.milestones.filter(m => m.id !== id)
-    });
+    if (formData.milestones.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        milestones: prev.milestones.filter(m => m.id !== id)
+      }));
+      toast.success('Milestone removed');
+    } else {
+      toast.error('At least one milestone is required');
+    }
   };
-  
-  const renderStep1 = () => (
-    <div className="space-y-6">
-      <Input 
-        label="Project Title"
-        required
-        placeholder="e.g., Children's book illustration needed"
-        helper="Be clear and specific"
-      />
+
+  const updateMilestone = (id, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      milestones: prev.milestones.map(m =>
+        m.id === id ? { ...m, [field]: value } : m
+      )
+    }));
+  };
+
+  const calculateTotalBudget = () => {
+    const total = formData.milestones.reduce((sum, m) => {
+      return sum + (parseFloat(m.amount) || 0);
+    }, 0);
+    setFormData(prev => ({ ...prev, totalBudget: total }));
+  };
+
+  const validateStep = (step) => {
+    const newErrors = {};
+
+    if (step === 1) {
+      if (!formData.title.trim()) newErrors.title = 'Title is required';
+      if (!formData.category) newErrors.category = 'Category is required';
+      if (!formData.description.trim()) newErrors.description = 'Description is required';
+      if (formData.skills.length === 0) newErrors.skills = 'Add at least one skill';
+    }
+
+    if (step === 2) {
+      formData.milestones.forEach((m, idx) => {
+        if (!m.name.trim()) newErrors[`milestone_${idx}_name`] = 'Milestone name required';
+        if (!m.amount || parseFloat(m.amount) <= 0) newErrors[`milestone_${idx}_amount`] = 'Valid amount required';
+        if (!m.timeline.trim()) newErrors[`milestone_${idx}_timeline`] = 'Timeline required';
+      });
+    }
+
+    if (step === 3) {
+      if (formData.revenueMyShare + formData.revenueCollabShare !== 100) {
+        newErrors.revenue = 'Revenue shares must total 100%';
+      }
+    }
+
+    if (step === 4) {
+      if (!formData.agreedToTerms) {
+        newErrors.terms = 'You must agree to the terms';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep === 2) calculateTotalBudget();
+      setCurrentStep(prev => Math.min(prev + 1, 4));
+    } else {
+      toast.error('Please fix the errors before continuing');
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleSubmit = async () => {
+    if (!isConnected) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    if (!validateStep(4)) {
+      toast.error('Please agree to the terms');
+      return;
+    }
+
+    try {
+      toast.loading('Creating project...', { id: 'create' });
       
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-slate-900 flex items-center gap-1">
-          Category <span className="text-red-500">*</span>
-        </label>
-        <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 bg-white text-slate-900">
-          <option value="">Select a category</option>
-          {categories.map(cat => (
-            <option key={cat.value} value={cat.value}>{cat.label}</option>
-          ))}
-        </select>
-        <p className="text-xs text-slate-500">Select the primary type of work needed</p>
-      </div>
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-slate-900 flex items-center gap-1">
-          Project Description <span className="text-red-500">*</span>
-        </label>
-        <textarea 
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 resize-y min-h-[180px] text-slate-900 placeholder:text-slate-400"
-          placeholder="Describe your project, requirements, timeline, and what you're looking for in a collaborator..."
-        />
-        <div className="flex justify-between items-center">
-          <p className="text-xs text-slate-500">Minimum 200 characters. Be detailed to attract the right collaborators.</p>
-          <span className="text-xs text-slate-400">0/2000</span>
-        </div>
-        <div className="text-xs text-cyan-600 flex items-center gap-1">
-          <Info className="w-3 h-3" />
-          <span>Markdown supported</span>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-slate-900">Attach Files (optional)</label>
-        <div className="border-2 border-dashed border-cyan-300 rounded-lg p-8 text-center hover:border-cyan-500 transition cursor-pointer bg-cyan-50/30">
-          <CloudUpload className="w-12 h-12 text-cyan-500 mx-auto mb-3" />
-          <p className="text-sm text-slate-900">Drag & drop files here or click to browse</p>
-          <p className="text-xs text-slate-600 mt-1">Supported: PDF, DOC, TXT, Images (Max 10MB)</p>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-slate-900 flex items-center gap-1">
-          Required Skills <span className="text-red-500">*</span>
-        </label>
-        <input 
-          type="text"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 text-slate-900 placeholder:text-slate-400"
-          placeholder="Type a skill and press Enter"
-        />
-        <div className="flex flex-wrap gap-2 mt-3">
-          {['Illustration', 'Character Design'].map((skill, idx) => (
-            <span key={idx} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-100 text-cyan-700 text-sm font-medium">
-              {skill}
-              <X className="w-3 h-3 cursor-pointer hover:text-cyan-900" />
-            </span>
-          ))}
-        </div>
-        <p className="text-xs text-slate-500">Add 3-7 skills. Press Enter after each skill.</p>
-        <div className="mt-3">
-          <p className="text-xs font-medium text-slate-600 mb-2">Common skills:</p>
-          <div className="flex flex-wrap gap-2">
-            {['Illustration', 'Character Design', 'Digital Art', 'Watercolor', '3D Modeling'].map((skill, idx) => (
-              <span key={idx} className="px-3 py-1 rounded-full bg-gray-100 text-slate-700 text-xs font-medium cursor-pointer hover:bg-cyan-100 hover:text-cyan-700 transition">
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  
-  const renderStep2 = () => (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Break Down Your Project</h2>
-        <p className="text-sm text-slate-600 mt-2">Define clear milestones with deliverables and payment amounts</p>
-      </div>
-      
-      <div className="space-y-4">
-        {formData.milestones.map((milestone, index) => (
-          <div key={milestone.id} className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-3">
-                <GripVertical className="w-5 h-5 text-slate-400 cursor-move" />
-                <h3 className="text-lg font-semibold text-slate-900">Milestone {index + 1}</h3>
-              </div>
-              {formData.milestones.length > 1 && (
-                <button onClick={() => removeMilestone(milestone.id)}>
-                  <Trash2 className="w-5 h-5 text-red-500 hover:text-red-700 cursor-pointer" />
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-4">
-              <Input 
-                label="Milestone Name"
-                required
-                placeholder="e.g., Initial character sketches"
+      console.log('Project Data:', {
+        ...formData,
+        creator: address,
+        createdAt: new Date().toISOString()
+      });
+
+      toast.success('Project created successfully!', { id: 'create' });
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error creating project:', error);
+      toast.error('Failed to create project', { id: 'create' });
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Project Title *
+              </label>
+              <Input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="e.g., AI-Powered NFT Art Collection"
+                className={errors.title ? 'border-red-500' : ''}
               />
-              
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-900">Description</label>
-                <textarea 
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 resize-y min-h-[100px] text-slate-900"
-                  placeholder="Describe what needs to be delivered for this milestone..."
-                />
+              {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                Category *
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {categories.map(cat => {
+                  const Icon = cat.icon;
+                  return (
+                    <button
+                      key={cat.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, category: cat.value })}
+                      className={`p-4 border-2 rounded-xl text-center transition-all hover:border-indigo-500 hover:bg-indigo-50 ${
+                        formData.category === cat.value
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-slate-200'
+                      }`}
+                    >
+                      <Icon className="w-6 h-6 mx-auto mb-2 text-indigo-600" />
+                      <span className="text-sm font-medium">{cat.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-900">Expected Deliverables</label>
-                <div className="space-y-2">
-                  {['Files', 'Documentation', 'Source Files', 'Revisions Included'].map((item, idx) => (
-                    <label key={idx} className="flex items-center gap-2">
-                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-cyan-600" />
-                      <span className="text-sm text-slate-700">{item}</span>
-                    </label>
-                  ))}
+              {errors.category && <p className="text-red-500 text-sm mt-1">{errors.category}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows="6"
+                placeholder="Describe your project, what you're building, and what makes it unique..."
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                  errors.description ? 'border-red-500' : 'border-slate-300'
+                }`}
+              />
+              {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Required Skills *
+              </label>
+              <div className="space-y-3">
+                <Input
+                  type="text"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyDown={handleSkillKeyDown}
+                  placeholder="Type a skill and press Enter"
+                  className={errors.skills ? 'border-red-500' : ''}
+                />
+                {errors.skills && <p className="text-red-500 text-sm">{errors.skills}</p>}
+                
+                {formData.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
+                      >
+                        {skill}
+                        <X
+                          className="w-4 h-4 cursor-pointer hover:text-indigo-900"
+                          onClick={() => removeSkill(skill)}
+                        />
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">Quick add:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {skillSuggestions
+                      .filter(s => !formData.skills.includes(s))
+                      .slice(0, 8)
+                      .map((skill, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => addSkill(skill)}
+                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-sm transition-colors"
+                        >
+                          + {skill}
+                        </button>
+                      ))}
+                  </div>
                 </div>
               </div>
-              
-              <div className="relative">
-                <label className="text-sm font-semibold text-slate-900 block mb-2">Payment Amount</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-                  <input 
-                    type="number"
-                    className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-600 text-slate-900"
-                    placeholder="500"
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Project Files (Optional)
+              </label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
+              >
+                <CloudUpload className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+                <p className="text-sm font-medium text-slate-700">
+                  Click to upload files
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Images, PDFs (Max 10MB each)
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              {uploadedFiles.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {uploadedFiles.map(file => (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg"
+                    >
+                      {file.type.startsWith('image/') ? (
+                        <img
+                          src={file.preview}
+                          alt={file.name}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      ) : (
+                        <FileText className="w-12 h-12 text-slate-400" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-700 truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeFile(file.id)}
+                        className="p-1 hover:bg-slate-200 rounded"
+                      >
+                        <X className="w-5 h-5 text-slate-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Define your project milestones</p>
+                <p className="text-blue-700">
+                  Break down your project into clear deliverables. Each milestone should have a specific outcome, budget, and timeline.
+                </p>
+              </div>
+            </div>
+
+            {formData.milestones.map((milestone, idx) => (
+              <div
+                key={milestone.id}
+                className="p-6 border-2 border-slate-200 rounded-xl space-y-4 relative"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-800">
+                    Milestone {idx + 1}
+                  </h3>
+                  {formData.milestones.length > 1 && (
+                    <button
+                      onClick={() => removeMilestone(milestone.id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Milestone Name *
+                    </label>
+                    <Input
+                      type="text"
+                      value={milestone.name}
+                      onChange={(e) => updateMilestone(milestone.id, 'name', e.target.value)}
+                      placeholder="e.g., Initial Design & Concept"
+                      className={errors[`milestone_${idx}_name`] ? 'border-red-500' : ''}
+                    />
+                    {errors[`milestone_${idx}_name`] && (
+                      <p className="text-red-500 text-sm mt-1">{errors[`milestone_${idx}_name`]}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Budget (IP) *
+                    </label>
+                    <Input
+                      type="number"
+                      value={milestone.amount}
+                      onChange={(e) => updateMilestone(milestone.id, 'amount', e.target.value)}
+                      placeholder="1000"
+                      min="0"
+                      step="0.01"
+                      className={errors[`milestone_${idx}_amount`] ? 'border-red-500' : ''}
+                    />
+                    {errors[`milestone_${idx}_amount`] && (
+                      <p className="text-red-500 text-sm mt-1">{errors[`milestone_${idx}_amount`]}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Timeline *
+                  </label>
+                  <Input
+                    type="text"
+                    value={milestone.timeline}
+                    onChange={(e) => updateMilestone(milestone.id, 'timeline', e.target.value)}
+                    placeholder="e.g., 2 weeks"
+                    className={errors[`milestone_${idx}_timeline`] ? 'border-red-500' : ''}
+                  />
+                  {errors[`milestone_${idx}_timeline`] && (
+                    <p className="text-red-500 text-sm mt-1">{errors[`milestone_${idx}_timeline`]}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Deliverables
+                  </label>
+                  <textarea
+                    value={milestone.deliverables}
+                    onChange={(e) => updateMilestone(milestone.id, 'deliverables', e.target.value)}
+                    rows="3"
+                    placeholder="What will be delivered at this milestone?"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
               </div>
-              
-              <Input 
-                label="Estimated Timeline"
-                placeholder="e.g., 2 weeks"
-                helper="How long will this milestone take?"
-              />
+            ))}
+
+            <Button
+              variant="secondary"
+              onClick={addMilestone}
+              className="w-full"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add Another Milestone
+            </Button>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+              <Info className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-purple-800">
+                <p className="font-medium mb-1">IP Revenue Sharing</p>
+                <p className="text-purple-700">
+                  Define how future revenue from this IP will be split between you and collaborators. This is enforced by smart contracts.
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      
-      <button 
-        onClick={addMilestone}
-        className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-slate-600 hover:border-cyan-500 hover:text-cyan-600 flex items-center justify-center gap-2 transition cursor-pointer mt-4"
-      >
-        <Plus className="w-5 h-5" />
-        Add Another Milestone
-      </button>
-    </div>
-  );
-  
-  const renderStep3 = () => (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Budget & Collaboration Terms</h2>
-        <p className="text-sm text-slate-600 mt-2">Set your total budget and define collaboration terms</p>
-      </div>
-      
-      <div className="bg-linear-to-br from-cyan-50 to-emerald-50 border border-cyan-200 rounded-xl p-6 mb-8">
-        <div className="text-sm font-medium text-slate-700 mb-2">Total Budget</div>
-        <div className="text-4xl font-bold text-slate-900">$2,000</div>
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div>
-            <div className="text-2xl font-semibold text-slate-900">4</div>
-            <div className="text-xs text-slate-600">Milestones</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-slate-900">$500</div>
-            <div className="text-xs text-slate-600">Avg per milestone</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-slate-900">12 weeks</div>
-            <div className="text-xs text-slate-600">Total timeline</div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-4 mb-8">
-        <h3 className="text-lg font-semibold text-slate-900">Revenue Split Configuration</h3>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-slate-700">Your Share</span>
-          <input type="range" min="0" max="100" value={formData.revenueMyShare} className="flex-1" />
-          <span className="text-sm font-medium text-slate-700">Collaborator's Share</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-3xl font-bold text-cyan-600">50%</span>
-          <span className="text-3xl font-bold text-emerald-600">50%</span>
-        </div>
-        <p className="text-xs text-slate-500">Define how future revenue will be split automatically</p>
-      </div>
-      
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">Intellectual Property Terms</h3>
-        {['Joint Ownership', 'License with Attribution', 'Work for Hire', 'Custom Terms'].map((option, idx) => (
-          <div key={idx} className="border border-gray-300 rounded-lg p-4 cursor-pointer hover:border-cyan-500 transition">
-            <div className="flex items-start gap-3">
-              <input type="radio" name="license" className="mt-1 w-4 h-4 text-cyan-600" />
-              <div>
-                <div className="text-base font-semibold text-slate-900">{option}</div>
-                <div className="text-sm text-slate-600 mt-1">
-                  {idx === 0 && 'Both parties are co-owners with equal rights'}
-                  {idx === 1 && 'Collaborator retains rights, you get usage license'}
-                  {idx === 2 && 'You own all rights, collaborator is paid for service'}
-                  {idx === 3 && 'Define your own agreement'}
+
+            <div className="p-6 border-2 border-slate-200 rounded-xl">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Revenue Distribution
+              </h3>
+
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      Your Share
+                    </label>
+                    <span className="text-lg font-bold text-indigo-600">
+                      {formData.revenueMyShare}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={formData.revenueMyShare}
+                    onChange={(e) => {
+                      const myShare = parseInt(e.target.value);
+                      setFormData({
+                        ...formData,
+                        revenueMyShare: myShare,
+                        revenueCollabShare: 100 - myShare
+                      });
+                    }}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
                 </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      Collaborator Share
+                    </label>
+                    <span className="text-lg font-bold text-purple-600">
+                      {formData.revenueCollabShare}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={formData.revenueCollabShare}
+                    onChange={(e) => {
+                      const collabShare = parseInt(e.target.value);
+                      setFormData({
+                        ...formData,
+                        revenueCollabShare: collabShare,
+                        revenueMyShare: 100 - collabShare
+                      });
+                    }}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
+                </div>
+              </div>
+
+              {errors.revenue && (
+                <p className="text-red-500 text-sm mt-4">{errors.revenue}</p>
+              )}
+            </div>
+
+            <div className="p-6 border-2 border-slate-200 rounded-xl">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                IP License Type
+              </h3>
+
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                  <input
+                    type="radio"
+                    name="licenseType"
+                    value="joint"
+                    checked={formData.licenseType === 'joint'}
+                    onChange={(e) => setFormData({ ...formData, licenseType: e.target.value })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-slate-800">Joint Ownership</p>
+                    <p className="text-sm text-slate-600">
+                      Both parties share equal rights to the IP and can make decisions together
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                  <input
+                    type="radio"
+                    name="licenseType"
+                    value="exclusive"
+                    checked={formData.licenseType === 'exclusive'}
+                    onChange={(e) => setFormData({ ...formData, licenseType: e.target.value })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-slate-800">Exclusive License</p>
+                    <p className="text-sm text-slate-600">
+                      You retain ownership but grant exclusive rights to the collaborator
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                  <input
+                    type="radio"
+                    name="licenseType"
+                    value="non-exclusive"
+                    checked={formData.licenseType === 'non-exclusive'}
+                    onChange={(e) => setFormData({ ...formData, licenseType: e.target.value })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-slate-800">Non-Exclusive License</p>
+                    <p className="text-sm text-slate-600">
+                      You retain full ownership and can license to multiple parties
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
-        ))}
-      </div>
-      
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mt-8">
-        <h4 className="text-base font-semibold text-slate-900 mb-3">Collaboration Agreement Preview</h4>
-        <div className="max-h-64 overflow-y-auto text-sm text-slate-700 leading-relaxed space-y-2">
-          <p>This agreement outlines the terms of collaboration for the project "Children's Book Illustration"...</p>
-          <p>Milestones: The project consists of 4 milestones with defined deliverables...</p>
-          <p>Payment: Total budget of $2,000 will be held in escrow and released upon milestone approval...</p>
-          <p>Revenue Split: Future revenue will be split 50/50 between both parties...</p>
-          <p>IP Ownership: Joint ownership with equal rights to both parties...</p>
-        </div>
-        <label className="flex items-start gap-3 mt-4 cursor-pointer">
-          <input type="checkbox" className="mt-1 w-5 h-5 text-cyan-600" />
-          <span className="text-sm text-slate-700">I agree to these terms and authorize the smart contract to hold funds in escrow</span>
-        </label>
-      </div>
-    </div>
-  );
-  
-  const renderStep4 = () => (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Review Your Project</h2>
-        <p className="text-sm text-slate-600 mt-2">Double-check all details before submitting</p>
-      </div>
-      
-      {/* Review Sections */}
-      <div className="space-y-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-slate-900">Basic Information</h3>
-            <button 
-              onClick={() => setCurrentStep(1)}
-              className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
-            >
-              <Edit3 className="w-4 h-4" />
-              Edit
-            </button>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <div className="text-sm font-medium text-slate-600">Project Title</div>
-              <div className="text-base text-slate-900 mt-1">Children's Book Illustration Series</div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">Project Summary</h3>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Title:</span>
+                  <span className="font-semibold text-slate-800">{formData.title}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Category:</span>
+                  <span className="font-semibold text-slate-800 capitalize">{formData.category}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Total Milestones:</span>
+                  <span className="font-semibold text-slate-800">{formData.milestones.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Total Budget:</span>
+                  <span className="font-semibold text-slate-800">{formData.totalBudget} IP</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Your Revenue Share:</span>
+                  <span className="font-semibold text-indigo-600">{formData.revenueMyShare}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Collaborator Share:</span>
+                  <span className="font-semibold text-purple-600">{formData.revenueCollabShare}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">License Type:</span>
+                  <span className="font-semibold text-slate-800 capitalize">{formData.licenseType.replace('-', ' ')}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600">Category</div>
-              <div className="text-base text-slate-900 mt-1">Design</div>
+
+            <div className="p-6 border-2 border-slate-200 rounded-xl">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Milestones</h3>
+              <div className="space-y-3">
+                {formData.milestones.map((m, idx) => (
+                  <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span className="font-medium text-slate-700">{idx + 1}. {m.name}</span>
+                    <span className="font-semibold text-indigo-600">{m.amount} IP</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-slate-600">Skills</div>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {['Illustration', 'Character Design', 'Digital Art'].map((skill, idx) => (
-                  <span key={idx} className="px-2 py-1 rounded-full bg-cyan-100 text-cyan-700 text-xs font-medium">
+
+            <div className="p-6 border-2 border-slate-200 rounded-xl">
+              <h3 className="text-lg font-semibold text-slate-800 mb-3">Required Skills</h3>
+              <div className="flex flex-wrap gap-2">
+                {formData.skills.map((skill, idx) => (
+                  <span key={idx} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
                     {skill}
                   </span>
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-        
-        <div className="bg-linear-to-br from-slate-900 to-slate-800 text-white rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4">Transaction Summary</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-slate-300">Total Budget</span>
-              <span className="text-base font-semibold">$2,000</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-slate-300">Platform Fee (2%)</span>
-              <span className="text-base font-semibold">$40</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-slate-300">Gas Fee (estimated)</span>
-              <span className="text-base font-semibold">$5</span>
-            </div>
-            <div className="border-t border-slate-700 pt-3 flex justify-between">
-              <span className="text-base font-semibold">Total to Lock</span>
-              <span className="text-xl font-bold">$2,045</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3 mt-10">
-        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-        <p className="text-sm text-amber-800">Once submitted, funds will be locked in escrow. Make sure all details are correct.</p>
-      </div>
-      
-      <button className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 flex items-center justify-center gap-2 shadow-lg transition mt-4">
-        <Rocket className="w-6 h-6" />
-        Submit Project & Lock Funds
-      </button>
-    </div>
-  );
-  
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar isConnected={true} />
-      
-      <div className="pt-20 min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12">
-            {/* Progress Stepper */}
-            <div className="flex justify-center items-center mb-12">
-              {steps.map((step, index) => (
-                <div key={step.id} className="flex items-center">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                      currentStep > step.id ? 'bg-emerald-600 text-white' :
-                      currentStep === step.id ? 'bg-cyan-600 text-white' :
-                      'bg-gray-200 text-slate-600'
-                    }`}>
-                      {currentStep > step.id ? <Check className="w-5 h-5" /> : step.id}
+
+            {uploadedFiles.length > 0 && (
+              <div className="p-6 border-2 border-slate-200 rounded-xl">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3">Uploaded Files</h3>
+                <div className="space-y-2">
+                  {uploadedFiles.map(file => (
+                    <div key={file.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
+                      <FileText className="w-5 h-5 text-slate-400" />
+                      <span className="text-sm text-slate-700">{file.name}</span>
                     </div>
-                    <span className={`text-xs font-medium mt-2 ${
-                      currentStep === step.id ? 'text-slate-900' : 'text-slate-500'
-                    }`}>
-                      {step.name}
-                    </span>
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className={`w-16 h-0.5 mx-2 ${
-                      currentStep > step.id ? 'bg-emerald-600' : 'bg-gray-200'
-                    }`} />
-                  )}
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            <div className="p-6 border-2 border-slate-200 rounded-xl">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.agreedToTerms}
+                  onChange={(e) => setFormData({ ...formData, agreedToTerms: e.target.checked })}
+                  className="mt-1"
+                />
+                <div className="text-sm text-slate-700">
+                  <p className="font-medium mb-1">I agree to the terms and conditions *</p>
+                  <p className="text-slate-600">
+                    I understand that this project will be registered on Story Protocol and all IP rights will be managed through smart contracts. I agree to the revenue sharing terms outlined above.
+                  </p>
+                </div>
+              </label>
+              {errors.terms && <p className="text-red-500 text-sm mt-2">{errors.terms}</p>}
             </div>
-            
-            {/* Step Content */}
-            {currentStep === 1 && renderStep1()}
-            {currentStep === 2 && renderStep2()}
-            {currentStep === 3 && renderStep3()}
-            {currentStep === 4 && renderStep4()}
-            
-            {/* Navigation Buttons */}
-            {currentStep < 4 && (
-              <div className="flex justify-between items-center mt-10 pt-6 border-t border-gray-200">
-                <button className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-2">
-                  {currentStep > 1 ? (
-                    <span onClick={() => setCurrentStep(currentStep - 1)}>← Back</span>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Save as Draft
-                    </>
-                  )}
-                </button>
-                <Button 
-                  onClick={() => setCurrentStep(currentStep + 1)}
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                >
-                  Next: {steps[currentStep]?.name}
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
+
+            {!isConnected && (
+              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Wallet not connected</p>
+                  <p className="text-amber-700">Please connect your wallet to submit the project</p>
+                </div>
               </div>
             )}
           </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <Navbar />
+      
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-slate-900 mb-4">
+            Create New Project
+          </h1>
+          <p className="text-lg text-slate-600">
+            Launch your IP-protected collaboration project
+          </p>
+        </div>
+
+        <div className="mb-12">
+          <div className="flex items-center justify-between relative">
+            {steps.map((step, idx) => (
+              <div key={step.number} className="flex flex-col items-center relative z-10 flex-1">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center font-bold border-2 transition-all ${
+                    currentStep > step.number
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : currentStep === step.number
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'bg-white border-slate-300 text-slate-400'
+                  }`}
+                >
+                  {currentStep > step.number ? <Check className="w-6 h-6" /> : step.number}
+                </div>
+                <div className="text-center mt-2">
+                  <p className={`text-sm font-semibold ${currentStep >= step.number ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {step.title}
+                  </p>
+                  <p className="text-xs text-slate-500">{step.description}</p>
+                </div>
+                {idx < steps.length - 1 && (
+                  <div
+                    className={`absolute top-6 left-1/2 w-full h-0.5 -z-10 ${
+                      currentStep > step.number ? 'bg-green-500' : 'bg-slate-300'
+                    }`}
+                    style={{ transform: 'translateY(-50%)' }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+          {renderStepContent()}
+        </div>
+
+        <div className="flex justify-between gap-4">
+          {currentStep > 1 && (
+            <Button variant="secondary" onClick={prevStep} className="px-8">
+              Back
+            </Button>
+          )}
+          <div className="flex-1" />
+          {currentStep < 4 ? (
+            <Button onClick={nextStep} className="px-8">
+              Next Step
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={!isConnected || !formData.agreedToTerms}
+              className="px-8"
+            >
+              <Rocket className="w-5 h-5 mr-2" />
+              Launch Project
+            </Button>
+          )}
         </div>
       </div>
-      
+
       <Footer />
     </div>
   );

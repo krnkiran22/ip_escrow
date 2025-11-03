@@ -69,7 +69,7 @@ const Dashboard = () => {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar isConnected={true} />
+      <Navbar />
       
       <div className="pt-20">
         {/* Page Header */}
