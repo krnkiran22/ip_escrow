@@ -6,8 +6,6 @@
 
 This means: **The contract's FIRST `require()` statement is failing!**
 
----
-
 ## 🔍 What We Need to Find Out:
 
 ### The contract is checking something at the very beginning and rejecting it.
