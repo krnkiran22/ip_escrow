@@ -7,6 +7,10 @@ import CreateProject from './pages/CreateProject';
 import ProjectDetail from './pages/ProjectDetail';
 import Profile from './pages/Profile';
 import IPPortfolio from './pages/IPPortfolio';
+import MyProjects from './pages/MyProjects';
+import Applications from './pages/Applications';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -20,6 +24,10 @@ function App() {
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/portfolio" element={<IPPortfolio />} />
+          <Route path="/projects/my" element={<MyProjects />} />
+          <Route path="/applications" element={<Applications />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
         <Toaster position="top-right" />
       </div>

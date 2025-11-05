@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Layers, Wallet, Menu, X } from 'lucide-react';
+import { Layers, Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import WalletConnect from '../shared/WalletConnect';
+import WalletButton from '../WalletButton';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,7 +48,7 @@ const Navbar = () => {
           
           {/* Right - Wallet Connect */}
           <div className="hidden md:flex items-center gap-3">
-            <WalletConnect />
+            <WalletButton />
             <Link 
               to="/#learn-more"
               className="border border-slate-900 text-slate-900 px-6 py-2.5 rounded-lg font-medium hover:bg-slate-50 transition"
@@ -90,7 +90,7 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="pt-4 border-t border-gray-200 space-y-3">
-              <WalletConnect />
+              <WalletButton />
               <Link 
                 to="/#learn-more"
                 className="block text-center border border-slate-900 text-slate-900 px-6 py-2.5 rounded-lg font-medium"

@@ -13,15 +13,19 @@ const Button = ({
   const baseClasses = 'rounded-lg font-medium transition inline-flex items-center justify-center gap-2';
   
   const variants = {
-    primary: 'bg-emerald-600 text-white hover:bg-emerald-700',
+    primary: 'bg-cyan-600 text-white hover:bg-cyan-700',
     secondary: 'border border-slate-900 text-slate-900 hover:bg-slate-50',
+    outline: 'border border-gray-300 text-slate-700 hover:bg-slate-50',
     danger: 'bg-red-600 text-white hover:bg-red-700',
     ghost: 'text-slate-600 hover:bg-gray-100',
   };
   
   const sizes = {
+    small: 'px-3 py-1.5 text-sm',
     sm: 'px-3 py-1.5 text-sm',
+    medium: 'px-4 py-2 text-base',
     md: 'px-4 py-2 text-base',
+    large: 'px-6 py-3 text-lg',
     lg: 'px-6 py-3 text-lg',
   };
   
