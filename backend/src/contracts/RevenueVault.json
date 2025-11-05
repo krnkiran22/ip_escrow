@@ -1,0 +1,87 @@
+{
+  "contractName": "RevenueVault",
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "configureRevenueShare",
+      "inputs": [
+        {"name": "_ipAssetId", "type": "string"},
+        {"name": "_owners", "type": "address[]"},
+        {"name": "_percentages", "type": "uint256[]"}
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "receiveRevenue",
+      "inputs": [{"name": "_ipAssetId", "type": "string"}],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "withdrawBalance",
+      "inputs": [{"name": "_ipAssetId", "type": "string"}],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "getOwnerBalance",
+      "inputs": [
+        {"name": "_ipAssetId", "type": "string"},
+        {"name": "_owner", "type": "address"}
+      ],
+      "outputs": [{"type": "uint256", "name": "balance"}],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getRevenueShare",
+      "inputs": [{"name": "_ipAssetId", "type": "string"}],
+      "outputs": [
+        {"name": "owners", "type": "address[]"},
+        {"name": "percentages", "type": "uint256[]"},
+        {"name": "totalRevenue", "type": "uint256"},
+        {"name": "isActive", "type": "bool"}
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "RevenueSplitConfigured",
+      "inputs": [
+        {"indexed": true, "name": "ipAssetId", "type": "string"},
+        {"indexed": false, "name": "owners", "type": "address[]"},
+        {"indexed": false, "name": "percentages", "type": "uint256[]"}
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "RevenueReceived",
+      "inputs": [
+        {"indexed": true, "name": "ipAssetId", "type": "string"},
+        {"indexed": true, "name": "sender", "type": "address"},
+        {"indexed": false, "name": "amount", "type": "uint256"}
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "RevenueWithdrawn",
+      "inputs": [
+        {"indexed": true, "name": "ipAssetId", "type": "string"},
+        {"indexed": true, "name": "owner", "type": "address"},
+        {"indexed": false, "name": "amount", "type": "uint256"}
+      ],
+      "anonymous": false
+    }
+  ]
+}

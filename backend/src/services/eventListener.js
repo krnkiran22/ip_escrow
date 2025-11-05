@@ -27,7 +27,7 @@ class EventListener {
   async initialize() {
     try {
       this.provider = blockchainConfig.getProvider();
-      this.contract = contractService.contract;
+      this.contract = contractService.getIPEscrowContract();
       
       // Get last processed block from storage or use current - 100
       const currentBlock = await this.provider.getBlockNumber();
@@ -139,8 +139,8 @@ class EventListener {
       });
     });
 
-    // MilestoneCompleted event
-    this.contract.on('MilestoneCompleted', async (projectId, milestoneIndex, amount, event) => {
+    // MilestoneApproved event (was incorrectly named MilestoneCompleted)
+    this.contract.on('MilestoneApproved', async (projectId, milestoneIndex, amount, event) => {
       await this.handleMilestoneCompleted({
         projectId: Number(projectId),
         milestoneIndex: Number(milestoneIndex),
@@ -149,14 +149,14 @@ class EventListener {
       });
     });
 
-    // ProjectCancelled event
-    this.contract.on('ProjectCancelled', async (projectId, refundAmount, event) => {
-      await this.handleProjectCancelled({
-        projectId: Number(projectId),
-        refundAmount: refundAmount.toString(),
-        event
-      });
-    });
+    // ProjectCancelled event - Not in current ABI, commented out
+    // this.contract.on('ProjectCancelled', async (projectId, refundAmount, event) => {
+    //   await this.handleProjectCancelled({
+    //     projectId: Number(projectId),
+    //     refundAmount: refundAmount.toString(),
+    //     event
+    //   });
+    // });
 
     logger.info('✅ Event listeners setup complete');
   }

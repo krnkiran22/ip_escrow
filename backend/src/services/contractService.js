@@ -1,36 +1,33 @@
 import { ethers } from 'ethers';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import blockchainConfig from '../config/blockchain.js';
 import logger from '../utils/logger.js';
 import { BlockchainError } from '../utils/errors.js';
 
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load contract ABIs
+const IPEscrowABI = JSON.parse(
+  readFileSync(join(__dirname, '../contracts/IPEscrow.json'), 'utf8')
+).abi;
+
+const RevenueVaultABI = JSON.parse(
+  readFileSync(join(__dirname, '../contracts/RevenueVault.json'), 'utf8')
+).abi;
+
 /**
  * Smart Contract Service for IPEscrow interactions
  */
-
-// IPEscrow Contract ABI (based on your deployed contract)
-const IP_ESCROW_ABI = [
-  'function createProject(string _title, uint256[] _amounts) external payable returns (uint256)',
-  'function approveCollaborator(uint256 _projectId, address _collaborator) external',
-  'function submitMilestone(uint256 _projectId, uint256 _milestoneIndex, string _ipfsHash) external',
-  'function approveMilestone(uint256 _projectId, uint256 _milestoneIndex) external',
-  'function rejectMilestone(uint256 _projectId, uint256 _milestoneIndex, string _reason) external',
-  'function cancelProject(uint256 _projectId) external',
-  'function getTotalProjects() external view returns (uint256)',
-  'function getProject(uint256 _projectId) external view returns (tuple(address creator, address collaborator, string title, uint256[] milestoneAmounts, uint8 status, uint256 totalAmount, uint256 platformFee, bool exists))',
-  'function getMilestone(uint256 _projectId, uint256 _milestoneIndex) external view returns (tuple(uint256 amount, string ipfsHash, uint8 status, bool exists))',
-  'function platformFeePercentage() external view returns (uint256)',
-  'event ProjectCreated(uint256 indexed projectId, address indexed creator, string title, uint256 totalAmount)',
-  'event CollaboratorApproved(uint256 indexed projectId, address indexed collaborator)',
-  'event MilestoneSubmitted(uint256 indexed projectId, uint256 milestoneIndex, string ipfsHash)',
-  'event MilestoneCompleted(uint256 indexed projectId, uint256 milestoneIndex, uint256 amount)',
-  'event ProjectCancelled(uint256 indexed projectId, uint256 refundAmount)',
-];
-
 class ContractService {
   constructor() {
     this.provider = null;
     this.wallet = null;
-    this.contract = null;
+    this.ipEscrowContract = null;
+    this.revenueVaultContract = null;
   }
 
   /**
@@ -38,17 +35,42 @@ class ContractService {
    */
   async initialize() {
     try {
+      // Validate environment variables
+      if (!process.env.IPESCROW_CONTRACT_ADDRESS) {
+        throw new Error('IPESCROW_CONTRACT_ADDRESS not configured in .env');
+      }
+      if (!process.env.REVENUE_VAULT_ADDRESS) {
+        throw new Error('REVENUE_VAULT_ADDRESS not configured in .env');
+      }
+
       this.provider = blockchainConfig.getProvider();
-      this.wallet = blockchainConfig.getWallet();
       
-      // Initialize contract instance
-      this.contract = new ethers.Contract(
-        process.env.PROJECT_FACTORY_ADDRESS,
-        IP_ESCROW_ABI,
-        this.wallet
+      // Try to get wallet, but don't fail if not available
+      try {
+        this.wallet = blockchainConfig.getWallet();
+      } catch (error) {
+        logger.warn('⚠️  Backend wallet not available - read-only mode');
+        this.wallet = null;
+      }
+      
+      // Initialize IPEscrow contract
+      this.ipEscrowContract = new ethers.Contract(
+        process.env.IPESCROW_CONTRACT_ADDRESS,
+        IPEscrowABI,
+        this.wallet || this.provider
+      );
+
+      // Initialize RevenueVault contract
+      this.revenueVaultContract = new ethers.Contract(
+        process.env.REVENUE_VAULT_ADDRESS,
+        RevenueVaultABI,
+        this.wallet || this.provider
       );
 
       logger.info('✅ Contract service initialized');
+      logger.info(`   IPEscrow: ${process.env.IPESCROW_CONTRACT_ADDRESS}`);
+      logger.info(`   RevenueVault: ${process.env.REVENUE_VAULT_ADDRESS}`);
+      
       return true;
     } catch (error) {
       logger.error('Failed to initialize contract service:', error);
@@ -57,16 +79,17 @@ class ContractService {
   }
 
   /**
-   * Get contract instance with signer
+   * Get contract instance (read-only)
    */
-  getContractWithSigner(signerAddress) {
-    // For read-only operations, use provider
-    // For write operations, this would need the user's wallet
-    return new ethers.Contract(
-      process.env.PROJECT_FACTORY_ADDRESS,
-      IP_ESCROW_ABI,
-      this.provider
-    );
+  getIPEscrowContract() {
+    return this.ipEscrowContract;
+  }
+
+  /**
+   * Get revenue vault contract (read-only)
+   */
+  getRevenueVaultContract() {
+    return this.revenueVaultContract;
   }
 
   /**
