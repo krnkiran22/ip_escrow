@@ -1,8 +1,8 @@
 export const STORY_AENEID_CONFIG = {
-  chainId: 1513,
+  chainId: 1315, // Fixed: Story Aeneid Testnet uses 1315
   name: 'Story Aeneid Testnet',
-  rpcUrl: import.meta.env.VITE_STORY_RPC_URL || 'https://testnet.storyrpc.io',
-  explorerUrl: import.meta.env.VITE_EXPLORER_URL || 'https://explorer.story.foundation',
+  rpcUrl: import.meta.env.VITE_STORY_NETWORK_RPC || 'https://aeneid.storyrpc.io',
+  explorerUrl: import.meta.env.VITE_STORY_EXPLORER || 'https://aeneid.storyscan.xyz',
   nativeCurrency: {
     name: 'IP',
     symbol: 'IP',
@@ -11,8 +11,8 @@ export const STORY_AENEID_CONFIG = {
 };
 
 export const CONTRACTS = {
-  ESCROW_FACTORY: import.meta.env.VITE_FACTORY_CONTRACT_ADDRESS,
-  REVENUE_VAULT: import.meta.env.VITE_REVENUE_VAULT_ADDRESS,
+  FACTORY_ADDRESS: import.meta.env.VITE_FACTORY_CONTRACT_ADDRESS,
+  REVENUE_VAULT_ADDRESS: import.meta.env.VITE_REVENUE_VAULT_ADDRESS,
 };
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
