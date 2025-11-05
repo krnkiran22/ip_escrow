@@ -389,6 +389,91 @@ const CreateProject = () => {
         )
       }));
 
+      // Step 6: Save to backend database
+      console.log('💾 Step 6: Saving project to backend database...');
+      console.log('Backend URL: http://localhost:5001/api/projects');
+      console.log('Project data to save:', {
+        creatorAddress: address,
+        title: formData.title,
+        projectId: contractResult.projectId
+      });
+      
+      try {
+        const backendPayload = {
+          creatorAddress: address,
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          skills: formData.skills,
+          files: formData.files.map(f => ({
+            name: f.name || '',
+            ipfsHash: f.ipfsHash || '',
+            type: f.type || '',
+            size: f.size || 0
+          })),
+          milestones: formData.milestones.map(m => ({
+            name: m.name || '',
+            description: m.description || '',
+            amount: String(m.amount || '0'),
+            timeline: m.timeline || '',
+            deliverables: m.deliverables || ''
+          })),
+          totalBudget: String(formData.totalBudget || '0'),
+          revenueSharing: {
+            creator: Number(formData.revenueMyShare || 0),
+            collaborator: Number(formData.revenueCollabShare || 0)
+          },
+          licenseType: formData.licenseType || 'standard',
+          blockchainData: {
+            projectId: Number(contractResult.projectId),
+            txHash: contractResult.txHash,
+            blockNumber: contractResult.receipt?.blockNumber ? Number(contractResult.receipt.blockNumber) : undefined
+          },
+          metadataIpfsHash: metadataResult.ipfsHash,
+          metadataIpfsUrl: metadataResult.url
+        };
+        
+        console.log('📤 Full payload being sent:', JSON.stringify(backendPayload, null, 2));
+        console.log('Sending POST request to backend...');
+        
+        const backendResponse = await fetch('http://localhost:5001/api/projects', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(backendPayload)
+        });
+
+        console.log('✅ Fetch completed! Response status:', backendResponse.status, backendResponse.statusText);
+        
+        if (!backendResponse.ok) {
+          const errorText = await backendResponse.text();
+          console.error('❌ Backend response not OK:', errorText);
+          throw new Error(`Backend responded with ${backendResponse.status}: ${errorText}`);
+        }
+
+        const backendResult = await backendResponse.json();
+        console.log('Backend response data:', backendResult);
+        
+        if (backendResult.success) {
+          console.log('✅ Project saved to database successfully!');
+          console.log('   MongoDB ID:', backendResult.project?._id);
+          console.log('   Blockchain ID:', backendResult.project?.projectId);
+          toast.success('Project saved to database!', { duration: 2000 });
+        } else {
+          console.error('❌ Backend returned success=false:', backendResult.error);
+          toast.error(`Database save failed: ${backendResult.error}`, { duration: 3000 });
+        }
+      } catch (backendError) {
+        console.error('❌ Backend API error:', backendError);
+        console.error('Error details:', {
+          message: backendError.message,
+          stack: backendError.stack
+        });
+        toast.error(`Warning: Database save failed - ${backendError.message}`, { duration: 5000 });
+        // Continue even if backend fails - blockchain transaction already succeeded
+      }
+
       // Success!
       toast.success(
         <div>
@@ -411,9 +496,9 @@ const CreateProject = () => {
 
       console.log('🎉 Complete Project Info:', completeProjectInfo);
 
-      // Navigate to dashboard after short delay
+      // Navigate to marketplace after short delay
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/marketplace');
       }, 2000);
 
     } catch (error) {

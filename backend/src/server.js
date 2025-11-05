@@ -26,6 +26,7 @@ import { apiLimiter } from './middleware/rateLimiter.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
+import projectRoutes from './routes/projects.js';
 // Additional routes will be imported here
 
 // Import utilities
@@ -91,7 +92,7 @@ app.get('/health', (req, res) => {
  * API Routes
  */
 app.use('/api/auth', authRoutes);
-// app.use('/api/projects', projectRoutes);
+app.use('/api/projects', projectRoutes);
 // app.use('/api/milestones', milestoneRoutes);
 // app.use('/api/applications', applicationRoutes);
 // app.use('/api/ip', ipAssetRoutes);
@@ -149,10 +150,13 @@ const startServer = async () => {
     await storyService.initialize();
     logger.info('✅ Story Protocol service initialized');
 
-    // Start event listener
-    await eventListener.initialize();
-    await eventListener.startListening();
-    logger.info('✅ Event listener started');
+    // Start event listener (DISABLED temporarily due to RPC filter expiration issues)
+    // The RPC node expires filters faster than ethers.js polls them
+    // This causes "filter not found" errors but doesn't affect functionality
+    // TODO: Implement webhook-based event listening or use different polling strategy
+    // await eventListener.initialize();
+    // await eventListener.startListening();
+    logger.info('⚠️  Event listener disabled (use webhooks or manual sync for production)');
 
     // Start Express server
     const server = app.listen(PORT, () => {
@@ -171,7 +175,7 @@ const startServer = async () => {
       });
 
       // Stop event listener
-      eventListener.stopListening();
+      // eventListener.stopListening();  // Disabled - see above
 
       // Close database connection
       const { disconnectDB } = await import('./config/database.js');

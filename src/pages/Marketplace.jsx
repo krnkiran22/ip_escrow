@@ -1,18 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, SlidersHorizontal, LayoutGrid, List, ChevronDown, ChevronLeft, ChevronRight, Heart, BadgeCheck, DollarSign, Flag, Clock, Users, ArrowRight, Star, PenTool, Palette, Music, Video, Code, MoreHorizontal, X } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const Marketplace = () => {
   const [viewMode, setViewMode] = useState('grid');
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     categories: [],
     minBudget: '',
     maxBudget: '',
-    status: 'All',
+    status: 'open',
     posted: 'All time'
   });
+
+  // Fetch projects from backend
+  useEffect(() => {
+    fetchProjects();
+  }, [filters.status]);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:5001/api/projects?status=${filters.status}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Transform backend data to frontend format
+        const transformedProjects = data.projects.map(p => ({
+          id: p.blockchainData?.projectId || p._id,
+          mongoId: p._id,
+          title: p.title,
+          description: p.description,
+          category: p.category || 'other',
+          creator: {
+            name: `${p.creatorAddress.slice(0, 6)}...${p.creatorAddress.slice(-4)}`,
+            address: p.creatorAddress,
+            avatar: p.creatorAddress.slice(2, 4).toUpperCase(),
+            verified: false,
+            rating: 0
+          },
+          budget: parseFloat(p.budget) / 1e18 || 0, // Convert wei to IP
+          budgetWei: p.budget,
+          milestones: p.milestoneCount || (p.metadata?.milestones?.length || 0),
+          timeline: 'TBD',
+          applications: p.applicationCount || 0,
+          skills: p.skills || [],
+          postedDate: new Date(p.createdAt).toLocaleDateString(),
+          status: p.status,
+          ipfsHash: p.metadataUri,
+          txHash: p.blockchainData?.txHash
+        }));
+        
+        setProjects(transformedProjects);
+        console.log(`✅ Loaded ${transformedProjects.length} projects from backend`);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
   
 
   const categories = [
@@ -22,63 +75,6 @@ const Marketplace = () => {
     { icon: Video, name: 'Video' },
     { icon: Code, name: 'Development' },
     { icon: MoreHorizontal, name: 'Other' }
-  ];
-  
-
-  
-  const projects = [
-    {
-      id: 1,
-      title: 'Looking for talented illustrator for children\'s book series',
-      category: 'Design',
-      creator: { name: 'Sarah Johnson', avatar: 'SJ', rating: 4.9, verified: true },
-      description: 'Need a creative illustrator for a 5-book children\'s series about space exploration. Looking for colorful, engaging artwork that appeals to ages 4-8.',
-      budget: 2000,
-      milestones: 4,
-      timeline: '3 months',
-      applications: 7,
-      skills: ['Illustration', 'Character Design', 'Digital Art'],
-      postedDate: '2 days ago'
-    },
-    {
-      id: 2,
-      title: 'Full-stack developer needed for DeFi dashboard',
-      category: 'Development',
-      creator: { name: 'Mike Chen', avatar: 'MC', rating: 4.7, verified: true },
-      description: 'Building a comprehensive DeFi analytics dashboard. Need experienced developer with React, Node.js, and blockchain integration experience.',
-      budget: 5000,
-      milestones: 6,
-      timeline: '4 months',
-      applications: 12,
-      skills: ['React', 'Node.js', 'Web3', 'Solidity'],
-      postedDate: '5 days ago'
-    },
-    {
-      id: 3,
-      title: 'Music composer for indie game soundtrack',
-      category: 'Music',
-      creator: { name: 'Alex Rivera', avatar: 'AR', rating: 5.0, verified: false },
-      description: 'Creating an atmospheric sci-fi adventure game. Need original soundtrack with 15-20 tracks, including ambient and action pieces.',
-      budget: 3000,
-      milestones: 5,
-      timeline: '2 months',
-      applications: 9,
-      skills: ['Music Composition', 'Sound Design', 'Game Audio'],
-      postedDate: '1 week ago'
-    },
-    {
-      id: 4,
-      title: 'Content writer for tech blog series',
-      category: 'Writing',
-      creator: { name: 'Emma Davis', avatar: 'ED', rating: 4.8, verified: true },
-      description: 'Need technical writer for 10-part series on blockchain technology. Must have deep understanding of Web3 and ability to explain complex concepts.',
-      budget: 1500,
-      milestones: 3,
-      timeline: '6 weeks',
-      applications: 15,
-      skills: ['Technical Writing', 'Blockchain', 'SEO'],
-      postedDate: '3 days ago'
-    }
   ];
   
   const renderStars = (rating) => {
@@ -185,16 +181,37 @@ const Marketplace = () => {
             <div className="flex-1">
               {/* Top Bar */}
               <div className="flex justify-between items-center mb-6">
-                <span className="text-sm text-slate-600">Showing {projects.length} projects</span>
+                <span className="text-sm text-slate-600">
+                  {loading ? 'Loading...' : `Showing ${projects.length} projects`}
+                </span>
                 <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:border-gray-400 transition">
                   <span>Sort by: Newest</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
               
+              {/* Loading State */}
+              {loading && (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
+                  <p className="mt-4 text-slate-600">Loading projects...</p>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!loading && projects.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                  <p className="text-slate-600">No projects found. Create one to get started!</p>
+                  <Link to="/create-project" className="mt-4 inline-block px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition">
+                    Create Project
+                  </Link>
+                </div>
+              )}
+              
               {/* Projects Grid */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {projects.map((project) => (
+              {!loading && projects.length > 0 && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {projects.map((project) => (
                   <div key={project.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-xl hover:border-cyan-600 transition cursor-pointer group">
                     <div className="flex justify-between items-start">
                       <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
@@ -272,7 +289,8 @@ const Marketplace = () => {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
               
               {/* Pagination */}
               <div className="flex justify-center items-center gap-2 mt-8">

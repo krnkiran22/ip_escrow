@@ -4,8 +4,20 @@ const projectSchema = new mongoose.Schema({
   creator: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false,  // Optional - use creatorAddress for now
     index: true
+  },
+  creatorAddress: {
+    type: String,
+    required: true,
+    lowercase: true,
+    index: true,
+    validate: {
+      validator: function(v) {
+        return /^0x[a-fA-F0-9]{40}$/.test(v);
+      },
+      message: 'Invalid Ethereum address format'
+    }
   },
   title: {
     type: String,
@@ -22,17 +34,22 @@ const projectSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['development', 'design', 'writing', 'marketing', 'video', 'music', 'other'],
+    enum: ['development', 'design', 'writing', 'marketing', 'video', 'music', 'software', 'other'],
     default: 'other'
   },
   budget: {
-    type: String,  // Store as string to handle BigInt (in wei)
+    type: String,  // Store as string (can be decimal like "0.11" or wei like "110000000000000000")
     required: true,
     validate: {
       validator: function(v) {
-        return BigInt(v) > 0n;
+        try {
+          const num = parseFloat(v);
+          return !isNaN(num) && num > 0;
+        } catch (e) {
+          return false;
+        }
       },
-      message: 'Budget must be greater than 0'
+      message: 'Budget must be a valid number greater than 0'
     }
   },
   status: {
@@ -76,6 +93,10 @@ const projectSchema = new mongoose.Schema({
       },
       message: 'Invalid IPFS hash format'
     }
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,  // Store full metadata object
+    default: {}
   },
   // Project details
   requirements: [String],

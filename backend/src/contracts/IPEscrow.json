@@ -18,8 +18,7 @@
       "name": "createProject",
       "inputs": [
         {"name": "_title", "type": "string"},
-        {"name": "_milestoneAmounts", "type": "uint256[]"},
-        {"name": "_ipfsHash", "type": "string"}
+        {"name": "_milestoneAmounts", "type": "uint256[]"}
       ],
       "outputs": [{"type": "uint256", "name": "projectId"}],
       "stateMutability": "payable"

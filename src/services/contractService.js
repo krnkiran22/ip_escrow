@@ -37,8 +37,8 @@ const storyAeneid = defineChain({
   testnet: true,
 });
 
-const contractAddress = getEnv('VITE_IPESCROW_CONTRACT_ADDRESS');
-const revenueVaultAddress = getEnv('VITE_REVENUE_VAULT_CONTRACT_ADDRESS');
+const contractAddress = getEnv('VITE_FACTORY_CONTRACT_ADDRESS');
+const revenueVaultAddress = getEnv('VITE_REVENUE_VAULT_ADDRESS');
 
 // Public client for reading
 const publicClient = createPublicClient({
@@ -125,11 +125,20 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
       throw new Error('All milestone amounts must be greater than 0');
     }
     
+    // Check for NaN values
+    const nanAmounts = milestoneAmounts.filter(amount => isNaN(amount));
+    if (nanAmounts.length > 0) {
+      throw new Error('Invalid milestone amount (NaN detected)');
+    }
+    
     console.log('✅ Input validation passed');
     console.log('   Title:', title);
     console.log('   Milestones:', milestoneAmounts.length);
     console.log('   Amounts:', milestoneAmounts);
     console.log('   Names:', milestoneNames);
+    console.log('   Every amount > 0:', milestoneAmounts.every(a => a > 0));
+    console.log('   Every amount is number:', milestoneAmounts.every(a => typeof a === 'number'));
+    console.log('');
     
     const { walletClient, address } = await getWalletClient();
     
@@ -139,15 +148,28 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
     // Calculate total budget
     const totalBudget = amounts.reduce((sum, amount) => sum + amount, 0n);
     
-    // Add 2% platform fee
+    // Add 2% platform fee - MUST match contract calculation exactly
     const platformFee = (totalBudget * 2n) / 100n;
     const totalValue = totalBudget + platformFee;
     
+    // VERIFY: Contract calculates fee as (total * PLATFORM_FEE_PERCENTAGE) / 100
+    // where PLATFORM_FEE_PERCENTAGE = 2
+    // So our calculation must match exactly
+    
     console.log('💰 Project Cost Calculation:');
-    console.log('   Milestone amounts:', milestoneAmounts);
-    console.log('   Total Budget:', (Number(totalBudget) / 1e18).toFixed(4), 'IP');
-    console.log('   Platform Fee (2%):', (Number(platformFee) / 1e18).toFixed(4), 'IP');
-    console.log('   Total Required:', (Number(totalValue) / 1e18).toFixed(4), 'IP');
+    console.log('   Milestone amounts (input):', milestoneAmounts);
+    console.log('   Milestone amounts (wei):', amounts.map(a => a.toString()));
+    console.log('   Total Budget (wei):', totalBudget.toString());
+    console.log('   Total Budget (IP):', (Number(totalBudget) / 1e18).toFixed(18), 'IP');
+    console.log('   Platform Fee (wei):', platformFee.toString());
+    console.log('   Platform Fee (IP):', (Number(platformFee) / 1e18).toFixed(18), 'IP (2%)');
+    console.log('   Total Required (wei):', totalValue.toString());
+    console.log('   Total Required (IP):', (Number(totalValue) / 1e18).toFixed(18), 'IP');
+    console.log('');
+    console.log('   🔍 Verification:');
+    console.log('   Contract expects: total + (total * 2 / 100)');
+    console.log('   We are sending:', totalValue.toString(), 'wei');
+    console.log('');
     
     // CHECK BALANCE BEFORE SENDING
     console.log('🔍 Checking wallet balance...');
@@ -175,21 +197,48 @@ export async function createProjectOnChain(title, description, milestoneAmounts,
     console.log('   Function:', 'createProject');
     console.log('   Arg 1 - Title:', title);
     console.log('   Arg 2 - Amounts (array):', amounts.map(a => a.toString()));
-    console.log('   Value (msg.value):', totalValue.toString(), 'wei =', (Number(totalValue) / 1e18).toFixed(4), 'IP');
+    console.log('   Value (msg.value):', totalValue.toString(), 'wei =', (Number(totalValue) / 1e18).toFixed(18), 'IP');
     console.log('   From address:', address);
-    console.log('   NOTE: Description and milestone names stored in IPFS only');
+    console.log('');
+    
+    // TEST: Can we read from the contract first?
+    try {
+      console.log('🔍 Testing contract read access...');
+      const projectCount = await publicClient.readContract({
+        address: contractAddress,
+        abi: escrowAbi,
+        functionName: 'projectCount',
+      });
+      console.log('✅ Contract is accessible. Current project count:', projectCount.toString());
+      
+      // Try to read owner
+      try {
+        const owner = await publicClient.readContract({
+          address: contractAddress,
+          abi: escrowAbi,
+          functionName: 'owner',
+        });
+        console.log('✅ Contract owner:', owner);
+      } catch (e) {
+        console.log('⚠️  Could not read owner:', e.message);
+      }
+    } catch (error) {
+      console.error('❌ Cannot read from contract!', error);
+      throw new Error(`Contract not accessible at ${contractAddress}. Is it deployed on Chain ID 1315?`);
+    }
     console.log('');
     
     toast.loading('Waiting for transaction approval...', { id: 'create-project' });
     
     console.log('🔐 Sending transaction to wallet for approval...');
     
-    // Call smart contract - only title and amounts (contract doesn't store description/names)
+    // Call smart contract - contract only needs title and amounts
+    // IPFS metadata stored off-chain for frontend use only
     const hash = await walletClient.writeContract({
       address: contractAddress,
       abi: escrowAbi,
       functionName: 'createProject',
-      args: [title, amounts],  // Only 2 parameters!
+      args: [title, amounts],  // Only 2 parameters match contract!
       value: totalValue,
       account: address,
     });
