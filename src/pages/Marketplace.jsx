@@ -5,6 +5,79 @@ import Footer from '../components/layout/Footer';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
+// Default dummy projects that always show
+const DEFAULT_PROJECTS = [
+  {
+    id: 'dummy-1',
+    mongoId: 'dummy-1',
+    title: "AI-Powered Mobile App for Health Tracking",
+    description: "Looking for an experienced mobile developer to build a cross-platform health and fitness tracking app. Must include integration with wearable devices, real-time data visualization, and cloud sync. Previous experience with React Native and health APIs required.",
+    category: 'development',
+    creator: {
+      name: 'TechCorp',
+      address: '0x742d35cc6634c0532925a3b844bc9e7595f0beef',
+      avatar: 'TC',
+      verified: true,
+      rating: 4.9
+    },
+    budget: 5.5,
+    budgetWei: '5500000000000000000',
+    milestones: 5,
+    timeline: '4 months',
+    applications: 12,
+    skills: ['React Native', 'Node.js', 'MongoDB', 'API Integration'],
+    postedDate: '3 days ago',
+    status: 'open',
+    isDummy: true
+  },
+  {
+    id: 'dummy-2',
+    mongoId: 'dummy-2',
+    title: "NFT Marketplace UI/UX Design",
+    description: "Need a talented UI/UX designer to create a modern, user-friendly interface for an NFT marketplace. The design should include landing page, marketplace listing, individual NFT pages, wallet integration, and creator dashboard. Figma experience required.",
+    category: 'design',
+    creator: {
+      name: 'BlockArt Studio',
+      address: '0x1234567890abcdef1234567890abcdef12345678',
+      avatar: 'BA',
+      verified: true,
+      rating: 4.8
+    },
+    budget: 3.2,
+    budgetWei: '3200000000000000000',
+    milestones: 3,
+    timeline: '6 weeks',
+    applications: 8,
+    skills: ['Figma', 'UI/UX Design', 'Web3', 'Responsive Design'],
+    postedDate: '1 week ago',
+    status: 'open',
+    isDummy: true
+  },
+  {
+    id: 'dummy-3',
+    mongoId: 'dummy-3',
+    title: "Educational Video Series on Blockchain Technology",
+    description: "Seeking a creative video producer to create a 10-episode educational series explaining blockchain, smart contracts, and DeFi concepts to beginners. Each video should be 5-7 minutes long with professional animations, voice-over, and subtitles.",
+    category: 'video',
+    creator: {
+      name: 'Web3 Academy',
+      address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      avatar: 'W3',
+      verified: true,
+      rating: 4.7
+    },
+    budget: 4.0,
+    budgetWei: '4000000000000000000',
+    milestones: 4,
+    timeline: '2 months',
+    applications: 15,
+    skills: ['Video Production', 'Animation', 'Voice Over', 'Educational Content'],
+    postedDate: '5 days ago',
+    status: 'open',
+    isDummy: true
+  }
+];
+
 const Marketplace = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [projects, setProjects] = useState([]);
@@ -52,16 +125,20 @@ const Marketplace = () => {
           postedDate: new Date(p.createdAt).toLocaleDateString(),
           status: p.status,
           ipfsHash: p.metadataUri,
-          txHash: p.blockchainData?.txHash
+          txHash: p.blockchainData?.txHash,
+          isDummy: false
         }));
         
-        setProjects(transformedProjects);
-        console.log(`✅ Loaded ${transformedProjects.length} projects from backend`);
+        // Combine default projects with real projects
+        const allProjects = [...DEFAULT_PROJECTS, ...transformedProjects];
+        setProjects(allProjects);
+        console.log(`✅ Loaded ${allProjects.length} projects (${DEFAULT_PROJECTS.length} default + ${transformedProjects.length} real)`);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
-      setProjects([]);
+      // Still show default projects even if backend fails
+      setProjects(DEFAULT_PROJECTS);
     } finally {
       setLoading(false);
     }

@@ -27,6 +27,8 @@ import { apiLimiter } from './middleware/rateLimiter.js';
 // Import routes
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
+import applicationRoutes from './routes/applications.js';
+import milestoneRoutes from './routes/milestones.js';
 // Additional routes will be imported here
 
 // Import utilities
@@ -93,8 +95,8 @@ app.get('/health', (req, res) => {
  */
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
-// app.use('/api/milestones', milestoneRoutes);
-// app.use('/api/applications', applicationRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/milestones', milestoneRoutes);
 // app.use('/api/ip', ipAssetRoutes);
 // app.use('/api/disputes', disputeRoutes);
 // app.use('/api/analytics', analyticsRoutes);
